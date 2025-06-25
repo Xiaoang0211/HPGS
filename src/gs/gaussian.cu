@@ -84,7 +84,7 @@ torch::Tensor GaussianModel::Get_covariance(float scaling_modifier)
 */
 void GaussianModel::Add_gaussians(std::vector<Point>& positions, std::vector<Color>& colors, std::vector<float>& scales)
 {   
-    // const int num_new_gaussians = scales.size();
+    const int num_new_gaussians = scales.size();
 
     const auto pointType = torch::TensorOptions().dtype(torch::kFloat32);
     const auto colorType = torch::TensorOptions().dtype(torch::kUInt8);
@@ -103,8 +103,8 @@ void GaussianModel::Add_gaussians(std::vector<Point>& positions, std::vector<Col
         _features_dc = features.index({Slice(), Slice(), Slice(0, 1)}).transpose(1, 2).contiguous().set_requires_grad(true);
         _features_rest = features.index({Slice(), Slice(), Slice(1, torch::indexing::None)}).transpose(1, 2).contiguous().set_requires_grad(true);
 
-        // aux variable for densification based on pixel errors
-        _e = torch::zeros({num_new_gaussians}, torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA).requires_grad(true));
+        // aux variable for densification based on pixel errors, the auxiliary variable e is initialized as 0 and will not be updated
+        _e = torch::zeros({num_new_gaussians, 1}, torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA).requires_grad(true));
 
         training_setup();
         _init_status = true;
@@ -125,7 +125,7 @@ void GaussianModel::Add_gaussians(std::vector<Point>& positions, std::vector<Col
         auto new_features_rest = features.index({Slice(), Slice(), Slice(1, torch::indexing::None)}).transpose(1, 2).contiguous().set_requires_grad(true);
 
         // aux variable for densification based on pixel errors
-        auto new_e = torch::zeros({num_new_gaussians}, torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA).set_requires_grad(true));
+        auto new_e = torch::zeros({num_new_gaussians, 1}, torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA).requires_grad(true));
 
         cat_tensors_to_optimizer(optimizer.get(), new_xyz, _xyz, 0);
         cat_tensors_to_optimizer(optimizer.get(), new_features_dc, _features_dc, 1);

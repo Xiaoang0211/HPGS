@@ -32,7 +32,6 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
                 torch::Tensor> RasterizeGaussiansCUDA(const torch::Tensor& background,
                                                     const torch::Tensor& means3D,
                                                     torch::Tensor& means2D,
-                                                    const torch::Tensor& primitive_e,
                                                     const torch::Tensor& colors,
                                                     const torch::Tensor& opacity,
                                                     const torch::Tensor& scales,
@@ -49,6 +48,7 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
                                                     const int degree,
                                                     const torch::Tensor& campos,
                                                     const bool prefiltered,
+                                                    const torch::Tensor& primitive_e,
                                                     const bool debug)
 {
     if (means3D.ndimension() != 2 || means3D.size(1) != 3) {
@@ -63,7 +63,7 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
     auto float_opts = means3D.options().dtype(torch::kFloat32);
 
     torch::Tensor out_color = torch::full({NUM_CHANNELS, H, W}, 0.0, float_opts);
-    torch::Tensor out_err = torch::full({H, W}, 0.0, float_opts);
+    torch::Tensor out_err = torch::full({1, H, W}, 0.0, float_opts);
     torch::Tensor radii = torch::full({P}, 0, int_opts);
 
     torch::Device device(torch::kCUDA);
@@ -107,38 +107,45 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
                                                        tan_fovy,
                                                        prefiltered,
                                                        out_color.contiguous().data_ptr<float>(),
-                                                       primitive_e.contiguous().data_ptr<float>(),
                                                        out_err.contiguous().data_ptr<float>(),
+                                                       primitive_e.contiguous().data_ptr<float>(),
                                                        radii.contiguous().data_ptr<int>(),
                                                        debug);
     }
-    return std::make_tuple(rendered, out_color, 
-                           out_err, 
-                           radii, geomBuffer, binningBuffer, imgBuffer);
+    return std::make_tuple(rendered, out_color, radii, geomBuffer, binningBuffer, imgBuffer, out_err);
 }
 
-std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor> RasterizeGaussiansBackwardCUDA(const torch::Tensor& background,
-                                                                                                                                                                  const torch::Tensor& means3D,
-                                                                                                                                                                  const torch::Tensor& radii,
-                                                                                                                                                                  const torch::Tensor& colors,
-                                                                                                                                                                  const torch::Tensor& scales,
-                                                                                                                                                                  const torch::Tensor& rotations,
-                                                                                                                                                                  const float scale_modifier,
-                                                                                                                                                                  const torch::Tensor& cov3D_precomp,
-                                                                                                                                                                  const torch::Tensor& viewmatrix,
-                                                                                                                                                                  const torch::Tensor& projmatrix,
-                                                                                                                                                                  const float tan_fovx,
-                                                                                                                                                                  const float tan_fovy,
-                                                                                                                                                                  const torch::Tensor& dL_dout_color,
-                                                                                                                                                                  const torch::Tensor& sh,
-                                                                                                                                                                  const int degree,
-                                                                                                                                                                  const torch::Tensor& campos,
-                                                                                                                                                                  const torch::Tensor& geomBuffer,
-                                                                                                                                                                  const int R,
-                                                                                                                                                                  const torch::Tensor& binningBuffer,
-                                                                                                                                                                  const torch::Tensor& imageBuffer,
-                                                                                                                                                                  const torch::Tensor& primitive_e,
-                                                                                                                                                                  const bool debug)
+std::tuple<torch::Tensor, 
+           torch::Tensor, 
+           torch::Tensor, 
+           torch::Tensor, 
+           torch::Tensor, 
+           torch::Tensor, 
+           torch::Tensor, 
+           torch::Tensor, 
+           torch::Tensor> RasterizeGaussiansBackwardCUDA(const torch::Tensor& background,
+                                                        const torch::Tensor& means3D,
+                                                        const torch::Tensor& radii,
+                                                        const torch::Tensor& colors,
+                                                        const torch::Tensor& scales,
+                                                        const torch::Tensor& rotations,
+                                                        const float scale_modifier,
+                                                        const torch::Tensor& cov3D_precomp,
+                                                        const torch::Tensor& viewmatrix,
+                                                        const torch::Tensor& projmatrix,
+                                                        const float tan_fovx,
+                                                        const float tan_fovy,
+                                                        const torch::Tensor& dL_dout_color,
+                                                        const torch::Tensor& sh,
+                                                        const int degree,
+                                                        const torch::Tensor& campos,
+                                                        const torch::Tensor& geomBuffer,
+                                                        const int R,
+                                                        const torch::Tensor& binningBuffer,
+                                                        const torch::Tensor& imageBuffer,
+                                                        const torch::Tensor& dL_dout_err,
+                                                        const torch::Tensor& primitive_e,
+                                                        const bool debug)
 {
     const int P = means3D.size(0);
     const int H = dL_dout_color.size(1);
@@ -158,7 +165,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
     torch::Tensor dL_dsh = torch::zeros({P, M, 3}, means3D.options());
     torch::Tensor dL_dscales = torch::zeros({P, 3}, means3D.options());
     torch::Tensor dL_drotations = torch::zeros({P, 4}, means3D.options());
-    torch::Tensor dL_dprimitivee = torch::zeros({P, 1}, means3D.options());
+    torch::Tensor dL_dprimitive_e = torch::zeros({P, 1}, means3D.options());
 
     if (P != 0) {
         CudaRasterizer::Rasterizer::backward(P,
@@ -194,11 +201,12 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
                                              dL_dsh.contiguous().data_ptr<float>(),
                                              dL_dscales.contiguous().data_ptr<float>(),
                                              dL_drotations.contiguous().data_ptr<float>(),
-                                             dL_dprimitivee.contiguous().data_ptr<float>(),
+                                             dL_dout_err.contiguous().data_ptr<float>(),
+                                             dL_dprimitive_e.contiguous().data_ptr<float>(),
                                              debug);
     }
 
-    return std::make_tuple(dL_dmeans2D, dL_dcolors, dL_dopacity, dL_dmeans3D, dL_dcov3D, dL_dsh, dL_dscales, dL_drotations, dL_dprimitivee);
+    return std::make_tuple(dL_dmeans2D, dL_dcolors, dL_dopacity, dL_dmeans3D, dL_dcov3D, dL_dsh, dL_dscales, dL_drotations, dL_dprimitive_e);
 }
 
 torch::Tensor markVisible(torch::Tensor& means3D, torch::Tensor& viewmatrix, torch::Tensor& projmatrix)

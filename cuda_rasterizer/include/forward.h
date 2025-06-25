@@ -40,7 +40,7 @@ namespace FORWARD {
                     float2* points_xy_image,
                     float* depths,
                     float* cov3Ds,
-                    float* colors,
+                    float* colors_depth,
                     float4* conic_opacity,
                     const dim3 grid,
                     uint32_t* tiles_touched,
@@ -59,8 +59,8 @@ namespace FORWARD {
         uint32_t* n_contrib,
         const float* bg_color,
         float* out_color
-        , const float* primitive_e
         , float* out_err
+        , const float* primitive_e
         );
 } // namespace FORWARD
 

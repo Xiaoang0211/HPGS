@@ -22,7 +22,6 @@ class GSUpdater {
               std::vector<gs::Camera>& gs_cam_list,
               std::vector<torch::Tensor>& gt_img_list,
               std::vector<torch::Tensor>& gt_depth_list,
-              std::vector<torch::Tensor>& gt_gray_list,
               gs::DataQueue& data_queue,
               const se::Image<float>& depth_img,
               const se::Image<rgb_t>* colour_img,

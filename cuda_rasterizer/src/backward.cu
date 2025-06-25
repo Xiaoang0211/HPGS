@@ -332,6 +332,7 @@ __global__ void preprocessCUDA(int P,
                                const glm::vec3* scales,
                                const glm::vec4* rotations,
                                const float scale_modifier,
+                               const float* view_matrix,
                                const float* proj,
                                const glm::vec3* campos,
                                const float3* dL_dmean2D,
@@ -395,7 +396,9 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
                                                                         float3* __restrict__ dL_dmean2D,
                                                                         float4* __restrict__ dL_dconic2D,
                                                                         float* __restrict__ dL_dopacity,
-                                                                        float* __restrict__ dL_dcolors)
+                                                                        float* __restrict__ dL_dcolors,
+                                                                        const float* __restrict__ dL_dout_err,
+                                                                        float* __restrict__ dL_dprimitive_e)
 {
     // We rasterize again. Compute necessary block info.
     auto block = cg::this_thread_block();
@@ -418,6 +421,8 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
     // product of all (1 - alpha) factors.
     const float T_final = inside ? final_Ts[pix_id] : 0;
     float T = T_final;
+
+    const float dL_err = inside ? dL_dout_err[pix_id] : 0.0f;
 
     // We start from the back. The ID of the last contributing
     // Gaussian is known from each pixel from the forward.
@@ -522,6 +527,10 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
             // Atomic, since this pixel is just one of potentially
             // many that were affected by this Gaussian.
             T = T / (1.f - alpha);
+
+            float weight = T * alpha;
+            atomicAdd(&dL_dprimitive_e[collected_id[j]], weight * dL_err);
+
             const float dchannel_dcolor = alpha * T;
             const int idx = (block.thread_rank() % D) + j * D;
             atomicAdd(&(s_dL_dcolors_rg[idx].x), dchannel_dcolor * dL_dpixel[0]);
@@ -638,6 +647,7 @@ void BACKWARD::preprocess(int P,
                                                            (glm::vec3*) scales,
                                                            (glm::vec4*) rotations,
                                                            scale_modifier,
+                                                           viewmatrix,
                                                            projmatrix,
                                                            campos,
                                                            (float3*) dL_dmean2D,
@@ -665,11 +675,13 @@ void BACKWARD::render(const dim3 grid,
                       float3* dL_dmean2D,
                       float4* dL_dconic2D,
                       float* dL_dopacity,
-                      float* dL_dcolors)
+                      float* dL_dcolors,
+                      const float* dL_dout_err,
+                      float* dL_dprimitive_e)
 {
     cudaMemcpyToSymbol(d_W, &W, sizeof(int));
     cudaMemcpyToSymbol(d_H, &H, sizeof(int));
     cudaMemcpyToSymbol(d_bg_color, bg_color, sizeof(float) * 3); // RGB
 
-    renderBackwardsCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, means2D, conic_opacity, colors, final_Ts, n_contrib, dL_dpixels, dL_dmean2D, dL_dconic2D, dL_dopacity, dL_dcolors);
+    renderBackwardsCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, means2D, conic_opacity, colors, final_Ts, n_contrib, dL_dpixels, dL_dmean2D, dL_dconic2D, dL_dopacity, dL_dcolors, dL_dout_err, dL_dprimitive_e);
 }

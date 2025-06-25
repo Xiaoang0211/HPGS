@@ -32,7 +32,6 @@ struct GSIntegrateImplD {
                           std::vector<gs::Camera>& gs_cam_list,
                           std::vector<torch::Tensor>& gt_img_list,
                           std::vector<torch::Tensor>& gt_depth_list,
-                          std::vector<torch::Tensor>& gt_gray_list,
                           gs::DataQueue& data_queue,
                           const Image<float>& depth_img,
                           const Image<rgb_t>* colour_img,
@@ -50,7 +49,6 @@ struct GSIntegrateImplD<Field::TSDF, Res::Single> {
                           std::vector<gs::Camera>& gs_cam_list,
                           std::vector<torch::Tensor>& gt_img_list,
                           std::vector<torch::Tensor>& gt_depth_list,
-                          std::vector<torch::Tensor>& gt_gray_list,
                           gs::DataQueue& data_queue,
                           const Image<float>& depth_img,
                           const Image<rgb_t>* colour_img,
@@ -67,7 +65,7 @@ struct GSIntegrateImplD<Field::TSDF, Res::Single> {
         // Update
         TICK("update")
         GSUpdater updater(map, sensor, gs_model, gs_cam_list, gt_img_list, 
-                          gt_depth_list, gt_gray_list, 
+                          gt_depth_list, 
                           data_queue, depth_img, colour_img, class_img, T_WS, frame);
         updater(block_ptrs);
         TOCK("update")
@@ -88,7 +86,6 @@ typename std::enable_if_t<MapT::col_ == Colour::On> integrate(MapT& map,
                                                               std::vector<gs::Camera>& gs_cam_list,
                                                               std::vector<torch::Tensor>& gt_img_list,
                                                               std::vector<torch::Tensor>& gt_depth_list,
-                                                              std::vector<torch::Tensor>& gt_gray_list,
                                                               gs::DataQueue& data_queue,
                                                               const Image<float>& depth_img,
                                                               const Image<rgb_t>& colour_img,
@@ -102,7 +99,7 @@ typename std::enable_if_t<MapT::col_ == Colour::On> integrate(MapT& map,
         throw std::invalid_argument(oss.str());
     }
     details::GSIntegrateImpl<MapT>::integrate(map, sensor, gs_model, gs_cam_list, gt_img_list, 
-                                              gt_depth_list, gt_gray_list, 
+                                              gt_depth_list, 
                                               data_queue, depth_img, &colour_img, nullptr, T_WS, frame);
 }
 

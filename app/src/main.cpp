@@ -85,9 +85,7 @@ int main(int argc, char** argv)
         gs::GaussianModel gs_model = gs::GaussianModel(optimParams, config.app.ply_path);
         std::vector<gs::Camera> gs_cam_list;
         std::vector<torch::Tensor> gt_img_list;
-        std::vector<torch::Tensor> gt_depth_list;
-        std::vector<torch::Tensor> gt_gray_list;
-        
+        std::vector<torch::Tensor> gt_depth_list;        
 
         // Write cfg_args file
         const std::string cfg_args_file = stdfs::path(config.app.ply_path).parent_path() / "cfg_args";
@@ -159,7 +157,7 @@ int main(int argc, char** argv)
             double s = PerfStats::getTime();
             if (frame % config.app.integration_rate == 0) {
                 se::integrator::integrate(map, gs_model, gs_cam_list, gt_img_list, 
-                                          gt_depth_list, gt_gray_list, 
+                                          gt_depth_list, 
                                           data_queue, 
                                           input_depth_img, input_colour_img, 
                                           sensor, T_WS, frame);

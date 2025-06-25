@@ -2,6 +2,8 @@
 .idea
 *.pt
 .venv
+.zip
+.csv
 *.png
 *.sqlite
 *.nsys-rep

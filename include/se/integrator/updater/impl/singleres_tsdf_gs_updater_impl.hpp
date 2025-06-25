@@ -29,7 +29,6 @@ GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, SensorT>::
                                                                                           std::vector<gs::Camera>& gs_cam_list,
                                                                                           std::vector<torch::Tensor>& gt_img_list,
                                                                                           std::vector<torch::Tensor>& gt_depth_list,
-                                                                                          std::vector<torch::Tensor>& gt_gray_list,
                                                                                           gs::DataQueue& data_queue,
                                                                                           const Image<float>& depth_img,
                                                                                           const Image<rgb_t>* colour_img,
@@ -42,7 +41,6 @@ GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, SensorT>::
         gs_cam_list_(gs_cam_list),
         gt_img_list_(gt_img_list),
         gt_depth_list_(gt_depth_list),
-        gt_gray_list_(gt_gray_list),
         data_queue_(data_queue),
         depth_img_(depth_img),
         colour_img_(colour_img),
@@ -78,7 +76,6 @@ GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, SensorT>::
     // gray scale image for computing the image gradient for densification
     rgb_weights_ = torch::tensor({0.2989f, 0.5870f, 0.1140f}, torch::TensorOptions().dtype(torch::kFloat32).device(cur_gt_img_.device()));
     cur_gt_img_gray_ = (cur_gt_img_ * rgb_weights_.view({3, 1, 1})).sum(0); // (H, W), CUDA, float32, [0,1]
-    gt_gray_list_.push_back(cur_gt_img_gray_);
 
     // Construct gs::Camera used for rendering
     Eigen::Matrix4f T_SW = math::to_inverse_transformation(T_WS_);
@@ -318,20 +315,35 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
 
     // Start online optimization
     for (int iter = 0; iter < iters; iter++) {
-        //—— Densification every 10 iters ——
+        // —— Densification every 10 iters ——
         if (iter % 10 == 0) { 
             // no gradient tracking for densification
-            torch::NoGradGuard no_grad;
-            auto [image, viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam_, gs_model_);
+            auto [image, viewspace_point_tensor, visibility_filter, radii, aux_err] = gs::render(cur_gs_cam_, gs_model_);
+            // std::cout << "image.sizes(): " << image.sizes() << "\n";
 
-        
             // Compute metric for densification
             auto pixel_err = torch::abs(image - cur_gt_img_).mean(0);
 
+            auto Laux = (pixel_err.detach() * aux_err.squeeze(0)).sum();
+            auto E_k = torch::autograd::grad({Laux}, {gs_model_.Get_e()})[0];
 
-            auto grads = torch::autograd::grad({L_aux}, {gs_model_._e}, {}, /*retain_graph=*/true);
+            // // log for E_k
+            // std::cout << "The size of E_k is: " << E_k.sizes() << "\n";
+            // auto E_k_cpu = E_k.detach().to(torch::kCPU).view({-1});
 
-            torch::Tensor E_k = grads[0]; // .size() = _K
+            // // Open in append or write mode (overwrite each time if needed)
+            // std::ofstream file("E_k.csv", std::ios::out); // Use std::ios::app to append if multiple writes
+
+            // if (file.is_open()) {
+            //     for (int i = 0; i < E_k_cpu.numel(); ++i) {
+            //         file << E_k_cpu[i].item<float>();
+            //         if (i != E_k_cpu.numel() - 1) file << ",";  // comma-separated
+            //     }
+            //     file << std::endl; // new line for next iteration if appending
+            //     file.close();
+            // } else {
+            //     std::cerr << "Unable to open E_k.csv for writing." << std::endl;
+            // }
 
             // ===== here comes the densification logic based on E_k =====
             // identify which gaussian primitives require densification
@@ -349,20 +361,14 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
             // Add new Gaussians to the gs model
             //gs_model_.Add_gaussians(positions_new, colors_new, scales_new)
             // ===========================================================
-            gs_model_._e.grad().zero_();
         }
-
+        
         auto [image, viewspace_point_tensor, visibility_filter, radii
             , err
             ] = gs::render(cur_gs_cam_, gs_model_);
 
         // Loss Computations
         auto loss = gs::l1_loss(image, cur_gt_img_);
-        // auto l1_loss = gs::l1_loss(image, cur_gt_img_);
-
-        // auto ssim_loss = gs::ssim(image, cur_gt_img_, gs::conv_window, gs::window_size, gs::channel);
-        // auto loss = (1.f - 0.2f) * l1_loss + 0.2f * (1.f - ssim_loss);
-
 
         // Optimization
         loss.backward();
@@ -378,24 +384,24 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         }
     }
 
-    if (!isKeyframe_) {
-        int kf_iters = gs_model_.optimParams.random_kf_num;
-        if (kf_indices.size() < kf_iters) {
-            kf_iters = kf_indices.size();
-        }
-        for (int i = 0; i < kf_iters; i++) {
-            auto kf_gt_img = gt_img_list_[kf_indices[i]];
-            auto kf_gs_cam = gs_cam_list_[kf_indices[i]];
+    // if (!isKeyframe_) {
+    //     int kf_iters = gs_model_.optimParams.random_kf_num;
+    //     if (kf_indices.size() < kf_iters) {
+    //         kf_iters = kf_indices.size();
+    //     }
+    //     for (int i = 0; i < kf_iters; i++) {
+    //         auto kf_gt_img = gt_img_list_[kf_indices[i]];
+    //         auto kf_gs_cam = gs_cam_list_[kf_indices[i]];
 
-            auto [image, viewspace_point_tensor, visibility_filter, radii
-                , err
-            ] = gs::render(kf_gs_cam, gs_model_);
-            auto loss = gs::l1_loss(image, kf_gt_img);
-            loss.backward();
-            gs_model_.optimizer->step();
-            gs_model_.optimizer->zero_grad(true);
-        }
-    }
+    //         auto [image, viewspace_point_tensor, visibility_filter, radii
+    //             , err
+    //         ] = gs::render(kf_gs_cam, gs_model_);
+    //         auto loss = gs::l1_loss(image, kf_gt_img);
+    //         loss.backward();
+    //         gs_model_.optimizer->step();
+    //         gs_model_.optimizer->zero_grad(true);
+    //     }
+    // }
 
     // Collect mapping statistics
     torch::cuda::synchronize();

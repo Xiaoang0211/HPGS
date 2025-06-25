@@ -8,7 +8,6 @@
  *
  * For inquiries contact  george.drettakis@inria.fr
  */
-
 #ifndef CUDA_RASTERIZER_CONFIG_H_INCLUDED
 #define CUDA_RASTERIZER_CONFIG_H_INCLUDED
 

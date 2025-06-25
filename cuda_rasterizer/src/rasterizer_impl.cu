@@ -191,8 +191,8 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
                                         float tan_fovy,
                                         const bool prefiltered,
                                         float* out_color,
-                                        const float* primitive_e,
                                         float* out_err,
+                                        const float* primitive_e,
                                         int* radii,
                                         bool debug)
 {
@@ -322,8 +322,8 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
                                imgState.n_contrib,
                                background,
                                out_color
-                               , primitive_e
                                , out_err
+                               , primitive_e
                                 ),
                debug)
 
@@ -365,7 +365,8 @@ void CudaRasterizer::Rasterizer::backward(const int P,
                                           float* dL_dsh,
                                           float* dL_dscale,
                                           float* dL_drot,
-                                          float* dL_dprimitivee,
+                                          const float* dL_dout_err,
+                                          float* dL_dprimitive_e,
                                           bool debug)
 {
     GeometryState geomState = GeometryState::fromChunk(geom_buffer, P);
@@ -402,7 +403,9 @@ void CudaRasterizer::Rasterizer::backward(const int P,
                                 (float3*) dL_dmean2D,
                                 (float4*) dL_dconic,
                                 dL_dopacity,
-                                dL_dcolor),
+                                dL_dcolor,
+                                dL_dout_err,
+                                dL_dprimitive_e),
                debug)
 
     // Take care of the rest of preprocessing. Was the precomputed covariance

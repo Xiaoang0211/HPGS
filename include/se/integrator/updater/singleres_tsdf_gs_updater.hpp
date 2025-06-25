@@ -47,7 +47,6 @@ class GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Sens
      * \param[in]  gs_cam_list The keyframe list of gs::Camera to store camera parameters.
      * \param[in]  gt_img_list The keyframe list of torch::Tensor to store color images.
      * \param[in]  gt_depth_list The keyframe list of torch::Tensor to store depth images.
-     * \param[in]  gt_gray_list  The keyframe list of torch::Tensor to store gray scale images.
      * \param[in]  data_queue  The queue to store visualization data for GUI
      * \param[in]  depth_img   The depth image to be integrated.
      * \param[in]  colour_img  The colour image to be integrated or nullptr if none.
@@ -61,7 +60,6 @@ class GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Sens
               std::vector<gs::Camera>& gs_cam_list,
               std::vector<torch::Tensor>& gt_img_list,
               std::vector<torch::Tensor>& gt_depth_list,
-              std::vector<torch::Tensor>& gt_gray_list,
               gs::DataQueue& data_queue,
               const Image<float>& depth_img,
               const Image<rgb_t>* colour_img,
@@ -92,7 +90,6 @@ class GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Sens
     std::vector<gs::Camera>& gs_cam_list_;
     std::vector<torch::Tensor>& gt_img_list_;
     std::vector<torch::Tensor>& gt_depth_list_;
-    std::vector<torch::Tensor>& gt_gray_list_;
     gs::DataQueue& data_queue_;
     gs::DataPacket data_packet_;
     gs::Camera cur_gs_cam_;

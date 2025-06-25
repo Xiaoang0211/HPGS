@@ -14,6 +14,7 @@
 
 #include "auxiliary.h"
 #include "forward.h"
+#include <iostream>
 namespace cg = cooperative_groups;
 
 // Forward method for converting the input spherical harmonics
@@ -258,8 +259,8 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
                                                                uint32_t* __restrict__ n_contrib,
                                                                const float* __restrict__ bg_color,
                                                                float* __restrict__ out_color,
-                                                               const float* __restrict__ primitive_e,
-                                                               float* __restrict__ out_err
+                                                               float* __restrict__ out_err,
+                                                               const float* __restrict__ primitive_e
                                                                 )
 {
     // Identify current tile and associated min/max pixel range.
@@ -306,18 +307,11 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
             collected_id[block.thread_rank()] = coll_id;
             collected_xy[block.thread_rank()] = points_xy_image[coll_id];
             collected_conic_opacity[block.thread_rank()] = conic_opacity[coll_id];
-        } 
-        // else {
-        //     // if this thread has no valid splat to load, mark it
-        //     collected_id[block.thread_rank()] = -1;
-        // }
+        }
         block.sync();
 
         // Iterate over current batch
         for (int j = 0; !done && j < min(BLOCK_SIZE, toDo); j++) {
-            int k = collected_id[j];
-            if (k < 0) continue;
-
             // Keep track of current position in range
             contributor++;
 
@@ -340,7 +334,7 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
                 continue;
 
             float weight = T * alpha;
-            acc_err += primitive_e[k] * weight;
+            acc_err += primitive_e[collected_id[j]] * weight;
             
             float test_T = __fmaf_rn(T, -alpha, T);
             if (test_T < ALPHA_MIN_FWD) {
@@ -378,18 +372,18 @@ void FORWARD::render(const dim3 grid,
                      int W,
                      int H,
                      const float2* means2D,
-                     const float* colors,
+                     const float* colors_depth,
                      const float4* conic_opacity,
                      float* final_T,
                      uint32_t* n_contrib,
                      const float* bg_color,
                      float* out_color,
-                     const float* primitive_e,
                      float* out_err,
+                     const float* primitive_e
                     )
 {
-    renderCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, W, H, means2D, colors, conic_opacity, final_T, n_contrib, bg_color, out_color 
-                                              , primitive_e, out_err
+    renderCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, W, H, means2D, colors_depth, conic_opacity, final_T, n_contrib, bg_color, out_color 
+                                              , out_err, primitive_e
                                               );
 }
 
