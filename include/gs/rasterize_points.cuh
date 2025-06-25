@@ -17,9 +17,10 @@
 
 namespace gs {
 
-std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor
-              , torch::Tensor
-              , torch::Tensor> RasterizeGaussiansCUDA(const torch::Tensor& background,
+std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
+                torch::Tensor,
+                torch::Tensor,
+                torch::Tensor> RasterizeGaussiansCUDA(const torch::Tensor& background,
                                                     const torch::Tensor& means3D,
                                                     torch::Tensor& means2D,
                                                     const torch::Tensor& colors,
@@ -62,6 +63,7 @@ std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, torch::Te
                                                         const int R,
                                                         const torch::Tensor& binningBuffer,
                                                         const torch::Tensor& imageBuffer,
+                                                        const torch::Tensor& dL_dout_depth,
                                                         const torch::Tensor& dL_dout_err,
                                                         const torch::Tensor& primitive_e,
                                                         const bool debug);

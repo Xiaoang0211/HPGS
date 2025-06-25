@@ -5,6 +5,8 @@
 cmake_minimum_required(VERSION 3.24)
 project(GSFusion LANGUAGES C CXX CUDA)
 
+# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G -g")
+
 option(SE_OPENMP "Compile supereight with OpenMP" ON)
 
 # Define the absolute path to LibTorch

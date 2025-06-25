@@ -12,6 +12,7 @@
 namespace gs {
 inline std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, 
                   torch::Tensor, 
+                  torch::Tensor, 
                   torch::Tensor>
 render(Camera& viewpoint_camera, GaussianModel& gaussianModel, float scaling_modifier = 1.0, torch::Tensor override_color = torch::empty({}))
 {
@@ -50,15 +51,15 @@ render(Camera& viewpoint_camera, GaussianModel& gaussianModel, float scaling_mod
     torch::cuda::synchronize();
 
     // Rasterize visible Gaussians to image, obtain their radii (on screen).
-    auto [rendererd_image, radii
-         , rendered_err
-         ] = rasterizer.forward(means3D, means2D, opacity
-                                , primitive_e
-                                , shs, colors_precomp, scales, rotations, cov3D_precomp);
+    auto [rendererd_image, 
+          rendered_depth, 
+          radii, rendered_err] = rasterizer.forward(means3D, means2D, opacity
+                                                    , primitive_e
+                                                    , shs, colors_precomp, scales, rotations, cov3D_precomp);
 
     // Apply visibility filter to remove occluded Gaussians.
-    return {rendererd_image, means2D, radii > 0, radii
-            , rendered_err
-            };
+    return {rendererd_image, 
+            rendered_depth, 
+            means2D, radii > 0, radii, rendered_err};
 }
 } // namespace gs

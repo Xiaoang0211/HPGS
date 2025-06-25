@@ -29,6 +29,7 @@ std::function<char*(size_t N)> resizeFunctional(torch::Tensor& t)
 
 std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor, 
                 torch::Tensor, 
+                torch::Tensor, 
                 torch::Tensor> RasterizeGaussiansCUDA(const torch::Tensor& background,
                                                     const torch::Tensor& means3D,
                                                     torch::Tensor& means2D,
@@ -63,6 +64,7 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
     auto float_opts = means3D.options().dtype(torch::kFloat32);
 
     torch::Tensor out_color = torch::full({NUM_CHANNELS, H, W}, 0.0, float_opts);
+    torch::Tensor out_depth = torch::full({1, H, W}, 0.0, float_opts);
     torch::Tensor out_err = torch::full({1, H, W}, 0.0, float_opts);
     torch::Tensor radii = torch::full({P}, 0, int_opts);
 
@@ -107,12 +109,15 @@ std::tuple<int, torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor,
                                                        tan_fovy,
                                                        prefiltered,
                                                        out_color.contiguous().data_ptr<float>(),
+                                                       out_depth.contiguous().data_ptr<float>(),
                                                        out_err.contiguous().data_ptr<float>(),
                                                        primitive_e.contiguous().data_ptr<float>(),
                                                        radii.contiguous().data_ptr<int>(),
                                                        debug);
     }
-    return std::make_tuple(rendered, out_color, radii, geomBuffer, binningBuffer, imgBuffer, out_err);
+    return std::make_tuple(rendered, out_color, 
+                           out_depth, 
+                           radii, geomBuffer, binningBuffer, imgBuffer, out_err);
 }
 
 std::tuple<torch::Tensor, 
@@ -143,6 +148,7 @@ std::tuple<torch::Tensor,
                                                         const int R,
                                                         const torch::Tensor& binningBuffer,
                                                         const torch::Tensor& imageBuffer,
+                                                        const torch::Tensor& dL_dout_depth,
                                                         const torch::Tensor& dL_dout_err,
                                                         const torch::Tensor& primitive_e,
                                                         const bool debug)
@@ -201,6 +207,7 @@ std::tuple<torch::Tensor,
                                              dL_dsh.contiguous().data_ptr<float>(),
                                              dL_dscales.contiguous().data_ptr<float>(),
                                              dL_drotations.contiguous().data_ptr<float>(),
+                                             dL_dout_depth.contiguous().data_ptr<float>(),
                                              dL_dout_err.contiguous().data_ptr<float>(),
                                              dL_dprimitive_e.contiguous().data_ptr<float>(),
                                              debug);

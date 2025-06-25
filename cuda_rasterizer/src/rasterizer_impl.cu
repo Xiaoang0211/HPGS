@@ -191,6 +191,7 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
                                         float tan_fovy,
                                         const bool prefiltered,
                                         float* out_color,
+                                        float* out_depth,
                                         float* out_err,
                                         const float* primitive_e,
                                         int* radii,
@@ -317,13 +318,15 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
                                height,
                                geomState.means2D,
                                feature_ptr,
+                               geomState.depths,
                                geomState.conic_opacity,
                                imgState.accum_alpha,
                                imgState.n_contrib,
                                background,
-                               out_color
-                               , out_err
-                               , primitive_e
+                               out_color,
+                               out_depth,
+                               out_err,
+                               primitive_e
                                 ),
                debug)
 
@@ -365,6 +368,7 @@ void CudaRasterizer::Rasterizer::backward(const int P,
                                           float* dL_dsh,
                                           float* dL_dscale,
                                           float* dL_drot,
+                                          const float* dL_dout_depth,
                                           const float* dL_dout_err,
                                           float* dL_dprimitive_e,
                                           bool debug)
@@ -401,9 +405,12 @@ void CudaRasterizer::Rasterizer::backward(const int P,
                                 imgState.n_contrib,
                                 dL_dpix,
                                 (float3*) dL_dmean2D,
+                                (glm::vec3*) dL_dmean3D,
                                 (float4*) dL_dconic,
                                 dL_dopacity,
                                 dL_dcolor,
+                                dL_dout_depth,
+                                viewmatrix,
                                 dL_dout_err,
                                 dL_dprimitive_e),
                debug)

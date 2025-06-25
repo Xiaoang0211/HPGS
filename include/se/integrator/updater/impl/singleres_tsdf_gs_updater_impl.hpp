@@ -318,7 +318,9 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         // —— Densification every 10 iters ——
         if (iter % 10 == 0) { 
             // no gradient tracking for densification
-            auto [image, viewspace_point_tensor, visibility_filter, radii, aux_err] = gs::render(cur_gs_cam_, gs_model_);
+            auto [image, 
+                  depth_img, 
+                  viewspace_point_tensor, visibility_filter, radii, aux_err] = gs::render(cur_gs_cam_, gs_model_);
             // std::cout << "image.sizes(): " << image.sizes() << "\n";
 
             // Compute metric for densification
@@ -363,9 +365,9 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
             // ===========================================================
         }
         
-        auto [image, viewspace_point_tensor, visibility_filter, radii
-            , err
-            ] = gs::render(cur_gs_cam_, gs_model_);
+        auto [image, 
+              depth_img, 
+              viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam_, gs_model_);
 
         // Loss Computations
         auto loss = gs::l1_loss(image, cur_gt_img_);

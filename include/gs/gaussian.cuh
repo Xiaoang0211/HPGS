@@ -92,7 +92,7 @@ class GaussianModel {
     std::unique_ptr<torch::optim::Adam> optimizer;
     param::OptimizationParameters optimParams;
     std::filesystem::path output_path;
-    torch::Tensor background = torch::tensor({0.f, 0.f, 0.f, 0.f});
+    torch::Tensor background = torch::tensor({0.f, 0.f, 0.f});
 
     private:
     std::vector<std::string> construct_list_of_attributes();

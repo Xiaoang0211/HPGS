@@ -188,9 +188,9 @@ int main(int argc, char** argv)
                         auto cur_gt_img = gt_img_list[indices[i]];
                         auto cur_gs_cam = gs_cam_list[indices[i]];
 
-                        auto [image, viewspace_point_tensor, visibility_filter, radii 
-                            , err
-                             ] = gs::render(cur_gs_cam, gs_model);
+                        auto [image, 
+                              depth_img,
+                              viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam, gs_model);
 
                         // Loss Computations
                         auto l1_loss = gs::l1_loss(image, cur_gt_img);

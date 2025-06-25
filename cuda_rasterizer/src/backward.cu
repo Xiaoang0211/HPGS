@@ -11,6 +11,7 @@
 
 #include <cooperative_groups.h>
 #include <cooperative_groups/reduce.h>
+#include <iostream>
 
 #include "auxiliary.h"
 #include "backward.h"
@@ -394,9 +395,12 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
                                                                         const uint32_t* __restrict__ n_contrib,
                                                                         const float* __restrict__ dL_dpixels,
                                                                         float3* __restrict__ dL_dmean2D,
+                                                                        glm::vec3* __restrict__ dL_dmeans,
                                                                         float4* __restrict__ dL_dconic2D,
                                                                         float* __restrict__ dL_dopacity,
                                                                         float* __restrict__ dL_dcolors,
+                                                                        const float* __restrict__ dL_dout_depth,
+                                                                        const float* __restrict__ viewmatrix,
                                                                         const float* __restrict__ dL_dout_err,
                                                                         float* __restrict__ dL_dprimitive_e)
 {
@@ -423,6 +427,8 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
     float T = T_final;
 
     const float dL_err = inside ? dL_dout_err[pix_id] : 0.0f;
+
+    const float dL_ddepth = inside ? dL_dout_depth[pix_id] : 0.0f;
 
     // We start from the back. The ID of the last contributing
     // Gaussian is known from each pixel from the forward.
@@ -544,6 +550,14 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
 
             float weight = T * alpha;
             atomicAdd(&dL_dprimitive_e[collected_id[j]], weight * dL_err);
+
+            float dL_ddepth_contrib = weight * dL_ddepth;
+
+            float m2 = viewmatrix[2], m6 = viewmatrix[6], m10 = viewmatrix[10];
+
+            atomicAdd(&dL_dmeans[collected_id[j]].x, dL_ddepth_contrib * m2);
+            atomicAdd(&dL_dmeans[collected_id[j]].y, dL_ddepth_contrib * m6);
+            atomicAdd(&dL_dmeans[collected_id[j]].z, dL_ddepth_contrib * m10);
 
             const float dchannel_dcolor = alpha * T;
             const int idx = (block.thread_rank() % D) + j * D;
@@ -693,9 +707,12 @@ void BACKWARD::render(const dim3 grid,
                       const uint32_t* n_contrib,
                       const float* dL_dpixels,
                       float3* dL_dmean2D,
+                      glm::vec3* dL_dmeans,  
                       float4* dL_dconic2D,
                       float* dL_dopacity,
                       float* dL_dcolors,
+                      const float* dL_dout_depth,
+                      const float* viewmatrix,
                       const float* dL_dout_err,
                       float* dL_dprimitive_e)
 {
@@ -703,5 +720,8 @@ void BACKWARD::render(const dim3 grid,
     cudaMemcpyToSymbol(d_H, &H, sizeof(int));
     cudaMemcpyToSymbol(d_bg_color, bg_color, sizeof(float) * 3); // RGB
 
-    renderBackwardsCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, means2D, conic_opacity, colors, final_Ts, n_contrib, dL_dpixels, dL_dmean2D, dL_dconic2D, dL_dopacity, dL_dcolors, dL_dout_err, dL_dprimitive_e);
+
+    renderBackwardsCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, means2D, conic_opacity, colors, final_Ts, n_contrib, dL_dpixels, dL_dmean2D, dL_dmeans, dL_dconic2D, dL_dopacity, dL_dcolors, 
+                                                       dL_dout_depth, 
+                                                       viewmatrix, dL_dout_err, dL_dprimitive_e);
 }

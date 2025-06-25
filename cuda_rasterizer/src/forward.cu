@@ -254,11 +254,13 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
                                                                int H,
                                                                const float2* __restrict__ points_xy_image,
                                                                const float* __restrict__ features,
+                                                               const float* __restrict__ depths, // geomState.depth
                                                                const float4* __restrict__ conic_opacity,
                                                                float* __restrict__ final_T,
                                                                uint32_t* __restrict__ n_contrib,
                                                                const float* __restrict__ bg_color,
                                                                float* __restrict__ out_color,
+                                                               float* __restrict__ out_depth,
                                                                float* __restrict__ out_err,
                                                                const float* __restrict__ primitive_e
                                                                 )
@@ -285,6 +287,7 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
     __shared__ int collected_id[BLOCK_SIZE];
     __shared__ float2 collected_xy[BLOCK_SIZE];
     __shared__ float4 collected_conic_opacity[BLOCK_SIZE];
+    __shared__ float collected_depth[BLOCK_SIZE];
 
     // Initialize helper variables
     float T = 1.0f;
@@ -292,6 +295,7 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
     uint32_t last_contributor = 0;
     float C[CHANNELS] = {0.f};
     float acc_err = 0.0f;
+    float expected_depth = 0.0f;
 
     // Iterate over batches until all done or range is complete
     for (int i = 0; i < rounds; i++, toDo -= BLOCK_SIZE) {
@@ -307,6 +311,7 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
             collected_id[block.thread_rank()] = coll_id;
             collected_xy[block.thread_rank()] = points_xy_image[coll_id];
             collected_conic_opacity[block.thread_rank()] = conic_opacity[coll_id];
+            collected_depth[block.thread_rank()] = depths[coll_id];
         }
         block.sync();
 
@@ -335,7 +340,8 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
 
             float weight = T * alpha;
             acc_err += primitive_e[collected_id[j]] * weight;
-            
+            expected_depth += weight * collected_depth[j];
+
             float test_T = __fmaf_rn(T, -alpha, T);
             if (test_T < ALPHA_MIN_FWD) {
                 done = true;
@@ -360,6 +366,7 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderCUDA(const uint2* __re
         final_T[pix_id] = T;
         n_contrib[pix_id] = last_contributor;
         out_err[pix_id] = acc_err;
+        out_depth[pix_id] = expected_depth;
         for (int ch = 0; ch < CHANNELS; ch++)
             out_color[ch * H * W + pix_id] = __fmaf_rn(T, bg_color[ch], C[ch]);
     }
@@ -372,18 +379,23 @@ void FORWARD::render(const dim3 grid,
                      int W,
                      int H,
                      const float2* means2D,
-                     const float* colors_depth,
+                     const float* colors,
+                     const float* depths,
                      const float4* conic_opacity,
                      float* final_T,
                      uint32_t* n_contrib,
                      const float* bg_color,
                      float* out_color,
+                     float* out_depth,
                      float* out_err,
                      const float* primitive_e
                     )
 {
-    renderCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, W, H, means2D, colors_depth, conic_opacity, final_T, n_contrib, bg_color, out_color 
-                                              , out_err, primitive_e
+    renderCUDA<NUM_CHANNELS><<<grid, block>>>(ranges, point_list, W, H, means2D, colors, 
+                                              depths, 
+                                              conic_opacity, final_T, n_contrib, bg_color, out_color, 
+                                              out_depth,
+                                              out_err, primitive_e
                                               );
 }
 

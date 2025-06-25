@@ -47,6 +47,7 @@ namespace CudaRasterizer {
             const float tan_fovx, float tan_fovy,
             const bool prefiltered,
             float* out_color,
+            float* out_depth,
             float* out_err,
             const float* primitive_e,
             int* radii = nullptr,
@@ -81,6 +82,7 @@ namespace CudaRasterizer {
             float* dL_dsh,
             float* dL_dscale,
             float* dL_drot,
+            const float* dL_dout_depth,
             const float* dL_dout_err,
             float* dL_dprimitive_e,
             bool debug);
