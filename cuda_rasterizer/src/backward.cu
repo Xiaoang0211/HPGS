@@ -448,15 +448,17 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
     __shared__ int collected_id[BLOCK_SIZE];
     __shared__ float2 collected_xy[BLOCK_SIZE];
     __shared__ float4 collected_conic_opacity[BLOCK_SIZE];
-    __shared__ float2 collected_colors_rg[BLOCK_SIZE];
-    __shared__ float collected_colors_b[BLOCK_SIZE];
+    // __shared__ float2 collected_colors_rg[BLOCK_SIZE];
+    // __shared__ float collected_colors_b[BLOCK_SIZE];
+    __shared__ float3 collected_colors_rgb[BLOCK_SIZE];
 
     __shared__ float2 s_dL_dmean2D[D * BLOCK_SIZE];
     __shared__ float2 s_dL_dconic2D_xy[D * BLOCK_SIZE];
     __shared__ float s_dL_dconic2D_w[D * BLOCK_SIZE];
     __shared__ float s_dL_dopacity[D * BLOCK_SIZE];
-    __shared__ float2 s_dL_dcolors_rg[D * BLOCK_SIZE];
-    __shared__ float s_dL_dcolors_b[D * BLOCK_SIZE];
+    // __shared__ float2 s_dL_dcolors_rg[D * BLOCK_SIZE];
+    // __shared__ float s_dL_dcolors_b[D * BLOCK_SIZE];
+    __shared__ float3 s_dL_dcolors_rgb[D * BLOCK_SIZE];
     // Traverse all Gaussians
     for (int i = 0; i < rounds; i++, toDo -= BLOCK_SIZE) {
         block.sync();
@@ -466,17 +468,21 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
             collected_id[block.thread_rank()] = coll_id;
             collected_xy[block.thread_rank()] = points_xy_image[coll_id];
             collected_conic_opacity[block.thread_rank()] = conic_opacity[coll_id];
-            collected_colors_rg[block.thread_rank()].x = colors[coll_id * C + 0];
-            collected_colors_rg[block.thread_rank()].y = colors[coll_id * C + 1];
-            collected_colors_b[block.thread_rank()] = colors[coll_id * C + 2];
+            // collected_colors_rg[block.thread_rank()].x = colors[coll_id * C + 0];
+            // collected_colors_rg[block.thread_rank()].y = colors[coll_id * C + 1];
+            // collected_colors_b[block.thread_rank()] = colors[coll_id * C + 2];
+            collected_colors_rgb[block.thread_rank()].x = colors[coll_id * C + 0];
+            collected_colors_rgb[block.thread_rank()].y = colors[coll_id * C + 1];
+            collected_colors_rgb[block.thread_rank()].z = colors[coll_id * C + 2];
 
             for (int d = 0; d < D; d++) {
                 s_dL_dmean2D[d + (block.thread_rank() * D)] = float2{0.f, 0.f};
                 s_dL_dconic2D_xy[d + (block.thread_rank() * D)] = float2{0.f, 0.f};
                 s_dL_dconic2D_w[d + (block.thread_rank() * D)] = 0.f;
                 s_dL_dopacity[d + (block.thread_rank() * D)] = 0.f;
-                s_dL_dcolors_rg[d + (block.thread_rank() * D)] = float2{0.f, 0.f};
-                s_dL_dcolors_b[d + (block.thread_rank() * D)] = 0.f;
+                // s_dL_dcolors_rg[d + (block.thread_rank() * D)] = float2{0.f, 0.f};
+                // s_dL_dcolors_b[d + (block.thread_rank() * D)] = 0.f;
+                s_dL_dcolors_rgb[d + (block.thread_rank() * D)] = float3{0.f, 0.f, 0.f};
             }
         }
         block.sync();
@@ -512,17 +518,25 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
             accum_rec[1] = last_alpha * last_color[1] + (1.f - last_alpha) * accum_rec[1];
             accum_rec[2] = last_alpha * last_color[2] + (1.f - last_alpha) * accum_rec[2];
             last_alpha = alpha;
-            const float2 rg = collected_colors_rg[j];
-            const float b = collected_colors_b[j];
+            // const float2 rg = collected_colors_rg[j];
+            // const float b = collected_colors_b[j];
+            const float r = collected_colors_rgb[j].x;
+            const float g = collected_colors_rgb[j].y;
+            const float b = collected_colors_rgb[j].z;
             float dL_dalpha = 0.0f;
-            dL_dalpha = (rg.x - accum_rec[0]) * dL_dpixel[0];
-            dL_dalpha += (rg.y - accum_rec[1]) * dL_dpixel[1];
+            // dL_dalpha = (rg.x - accum_rec[0]) * dL_dpixel[0];
+            // dL_dalpha += (rg.y - accum_rec[1]) * dL_dpixel[1];
+            // dL_dalpha += (b - accum_rec[2]) * dL_dpixel[2];
+            dL_dalpha = (r - accum_rec[0]) * dL_dpixel[0];
+            dL_dalpha += (g - accum_rec[1]) * dL_dpixel[1];
             dL_dalpha += (b - accum_rec[2]) * dL_dpixel[2];
             // Update last color (to be used in the next iteration)
-            last_color[0] = rg.x;
-            last_color[1] = rg.y;
+            // last_color[0] = rg.x;
+            // last_color[1] = rg.y;
+            // last_color[2] = b;
+            last_color[0] = r;
+            last_color[1] = g;
             last_color[2] = b;
-
             // Update the gradients w.r.t. color of the Gaussian.
             // Atomic, since this pixel is just one of potentially
             // many that were affected by this Gaussian.
@@ -533,9 +547,12 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
 
             const float dchannel_dcolor = alpha * T;
             const int idx = (block.thread_rank() % D) + j * D;
-            atomicAdd(&(s_dL_dcolors_rg[idx].x), dchannel_dcolor * dL_dpixel[0]);
-            atomicAdd(&(s_dL_dcolors_rg[idx].y), dchannel_dcolor * dL_dpixel[1]);
-            atomicAdd(&(s_dL_dcolors_b[idx]), dchannel_dcolor * dL_dpixel[2]);
+            // atomicAdd(&(s_dL_dcolors_rg[idx].x), dchannel_dcolor * dL_dpixel[0]);
+            // atomicAdd(&(s_dL_dcolors_rg[idx].y), dchannel_dcolor * dL_dpixel[1]);
+            // atomicAdd(&(s_dL_dcolors_b[idx]), dchannel_dcolor * dL_dpixel[2]);
+            atomicAdd(&(s_dL_dcolors_rgb[idx].x), dchannel_dcolor * dL_dpixel[0]);
+            atomicAdd(&(s_dL_dcolors_rgb[idx].y), dchannel_dcolor * dL_dpixel[1]);
+            atomicAdd(&(s_dL_dcolors_rgb[idx].z), dchannel_dcolor * dL_dpixel[2]);
             // Update last alpha (to be used in the next iteration)
 
             // Account for fact that alpha also influences how much of
@@ -583,9 +600,12 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
                 dL_dconic2D_y += s_dL_dconic2D_xy[idx].y;
                 dL_dconic2D_w += s_dL_dconic2D_w[idx];
                 dL_dopacity_ += s_dL_dopacity[idx];
-                dL_dcolors_r += s_dL_dcolors_rg[idx].x;
-                dL_dcolors_g += s_dL_dcolors_rg[idx].y;
-                dL_dcolors_b += s_dL_dcolors_b[idx];
+                // dL_dcolors_r += s_dL_dcolors_rg[idx].x;
+                // dL_dcolors_g += s_dL_dcolors_rg[idx].y;
+                // dL_dcolors_b += s_dL_dcolors_b[idx];
+                dL_dcolors_r += s_dL_dcolors_rgb[idx].x;
+                dL_dcolors_g += s_dL_dcolors_rgb[idx].y;
+                dL_dcolors_b += s_dL_dcolors_rgb[idx].z;
             }
 
             atomicAdd(&(dL_dmean2D[coll_id].x), dL_dmean2D_x);
