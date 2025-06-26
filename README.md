@@ -2,7 +2,7 @@
 
 The this is the branch for our novel densification approach. ROS2 is not yet integrated. We call it HPGS2 for now.
 
-Compared to the baseline method (GSFusion) the new features are:
+Compared to the baseline method ([GSFusion](https://github.com/smartroboticslab/GSFusion)) the new features are:
 
 + Depth rendering within the alpha-blending pipeline.
 + Depth loss that ignores invalid pixels in the ground truth depth image.
