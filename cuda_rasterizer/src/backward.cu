@@ -548,25 +548,22 @@ __global__ void __launch_bounds__(BLOCK_X* BLOCK_Y) renderBackwardsCUDA(const ui
             // many that were affected by this Gaussian.
             T = T / (1.f - alpha);
 
-            float weight = T * alpha;
+            const float weight = T * alpha;
             atomicAdd(&dL_dprimitive_e[collected_id[j]], weight * dL_err);
 
             float dL_ddepth_contrib = weight * dL_ddepth;
+            atomicAdd(&dL_dmeans[collected_id[j]].x, dL_ddepth_contrib * viewmatrix[2]);
+            atomicAdd(&dL_dmeans[collected_id[j]].y, dL_ddepth_contrib * viewmatrix[6]);
+            atomicAdd(&dL_dmeans[collected_id[j]].z, dL_ddepth_contrib * viewmatrix[10]);
 
-            float m2 = viewmatrix[2], m6 = viewmatrix[6], m10 = viewmatrix[10];
-
-            atomicAdd(&dL_dmeans[collected_id[j]].x, dL_ddepth_contrib * m2);
-            atomicAdd(&dL_dmeans[collected_id[j]].y, dL_ddepth_contrib * m6);
-            atomicAdd(&dL_dmeans[collected_id[j]].z, dL_ddepth_contrib * m10);
-
-            const float dchannel_dcolor = alpha * T;
+            // const float dchannel_dcolor = alpha * T;
             const int idx = (block.thread_rank() % D) + j * D;
             // atomicAdd(&(s_dL_dcolors_rg[idx].x), dchannel_dcolor * dL_dpixel[0]);
             // atomicAdd(&(s_dL_dcolors_rg[idx].y), dchannel_dcolor * dL_dpixel[1]);
             // atomicAdd(&(s_dL_dcolors_b[idx]), dchannel_dcolor * dL_dpixel[2]);
-            atomicAdd(&(s_dL_dcolors_rgb[idx].x), dchannel_dcolor * dL_dpixel[0]);
-            atomicAdd(&(s_dL_dcolors_rgb[idx].y), dchannel_dcolor * dL_dpixel[1]);
-            atomicAdd(&(s_dL_dcolors_rgb[idx].z), dchannel_dcolor * dL_dpixel[2]);
+            atomicAdd(&(s_dL_dcolors_rgb[idx].x), weight * dL_dpixel[0]);
+            atomicAdd(&(s_dL_dcolors_rgb[idx].y), weight * dL_dpixel[1]);
+            atomicAdd(&(s_dL_dcolors_rgb[idx].z), weight * dL_dpixel[2]);
             // Update last alpha (to be used in the next iteration)
 
             // Account for fact that alpha also influences how much of

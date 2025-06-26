@@ -306,6 +306,8 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         gs_model_.Add_gaussians(positions, colors, scales);
     }
 
+    std::cout << "--- Number of new Gaussians: " << positions.size() << " ---\n";
+
     int iters = gs_model_.optimParams.kf_iters;
     if (!isKeyframe_) {
         iters = gs_model_.optimParams.non_kf_iters;
@@ -368,9 +370,14 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         auto [image, 
               depth_img, 
               viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam_, gs_model_);
+        
+        auto valid_mask = (cur_gt_depth_ > 0); 
+        auto diff = (depth_img - cur_gt_depth_).abs();
+        auto weighted_diff = diff * valid_mask;
+        auto depth_loss = weighted_diff.sum() / valid_mask.sum();
 
         // Loss Computations
-        auto loss = gs::l1_loss(image, cur_gt_img_);
+        auto loss = 0.5 * gs::l1_loss(image, cur_gt_img_) + depth_loss;
 
         // Optimization
         loss.backward();
@@ -386,24 +393,31 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         }
     }
 
-    // if (!isKeyframe_) {
-    //     int kf_iters = gs_model_.optimParams.random_kf_num;
-    //     if (kf_indices.size() < kf_iters) {
-    //         kf_iters = kf_indices.size();
-    //     }
-    //     for (int i = 0; i < kf_iters; i++) {
-    //         auto kf_gt_img = gt_img_list_[kf_indices[i]];
-    //         auto kf_gs_cam = gs_cam_list_[kf_indices[i]];
+    if (!isKeyframe_) {
+        int kf_iters = gs_model_.optimParams.random_kf_num;
+        if (kf_indices.size() < kf_iters) {
+            kf_iters = kf_indices.size();
+        }
+        for (int i = 0; i < kf_iters; i++) {
+            auto kf_gt_img = gt_img_list_[kf_indices[i]];
+            auto kf_gt_depth = gt_depth_list_[kf_indices[i]];
+            auto kf_gs_cam = gs_cam_list_[kf_indices[i]];
 
-    //         auto [image, viewspace_point_tensor, visibility_filter, radii
-    //             , err
-    //         ] = gs::render(kf_gs_cam, gs_model_);
-    //         auto loss = gs::l1_loss(image, kf_gt_img);
-    //         loss.backward();
-    //         gs_model_.optimizer->step();
-    //         gs_model_.optimizer->zero_grad(true);
-    //     }
-    // }
+            auto [image, depth_img, viewspace_point_tensor, visibility_filter, radii, err] = gs::render(kf_gs_cam, gs_model_);
+            auto valid_mask = (kf_gt_depth > 0); 
+            auto diff = (depth_img - kf_gt_depth).abs();
+            auto weighted_diff = diff * valid_mask;
+            auto depth_loss = weighted_diff.sum() / valid_mask.sum();
+    
+            // Loss Computations
+            auto loss = 0.5 * gs::l1_loss(image, kf_gt_img) + depth_loss;
+
+            // auto loss = gs::l1_loss(image, kf_gt_img);
+            loss.backward();
+            gs_model_.optimizer->step();
+            gs_model_.optimizer->zero_grad(true);
+        }
+    }
 
     // Collect mapping statistics
     torch::cuda::synchronize();

@@ -186,16 +186,22 @@ int main(int argc, char** argv)
                     std::vector<int> indices = gs::get_random_indices(gt_img_list.size());
                     for (int i = 0; i < indices.size(); i++) {
                         auto cur_gt_img = gt_img_list[indices[i]];
+                        auto cur_gt_depth = gt_depth_list[indices[i]];
                         auto cur_gs_cam = gs_cam_list[indices[i]];
 
                         auto [image, 
                               depth_img,
                               viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam, gs_model);
 
+                        auto valid_mask = (cur_gt_depth > 0); 
+                        auto diff = (depth_img - cur_gt_depth).abs();
+                        auto weighted_diff = diff * valid_mask;
+                        auto depth_loss = weighted_diff.sum() / valid_mask.sum();
+                
                         // Loss Computations
                         auto l1_loss = gs::l1_loss(image, cur_gt_img);
                         auto ssim_loss = gs::ssim(image, cur_gt_img, gs::conv_window, gs::window_size, gs::channel);
-                        auto loss = (1.f - lambda) * l1_loss + lambda * (1.f - ssim_loss);
+                        auto loss = (1.f - lambda) * l1_loss + lambda * (1.f - ssim_loss) + (1.f - lambda) * 0.5 * depth_loss;
 
                         // Optimization
                         loss.backward();
