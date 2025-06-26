@@ -11,3 +11,4 @@ Compared to the baseline method (GSFusion) the new features are:
 Other new implementation features:
 + New output for the render function: projected 2D Gaussian positions on the image plane.
 + ROS2 Support for integration with VLSLAM Systems.
++ Buffer for depth images
