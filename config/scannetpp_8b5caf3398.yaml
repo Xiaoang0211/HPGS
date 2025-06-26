@@ -42,3 +42,6 @@ app:
   meshing_rate:               0
   max_frames:                 -1
   log_file:                   "/tmp/log.tsv"
+
+vslam:
+  use_gt_pose:               true

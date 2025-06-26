@@ -24,7 +24,6 @@ struct GaussianRasterizationSettings {
 
 torch::autograd::tensor_list rasterize_gaussians(torch::Tensor means3D,
                                                  torch::Tensor means2D,
-                                                 torch::Tensor primitive_e,
                                                  torch::Tensor sh,
                                                  torch::Tensor colors_precomp,
                                                  torch::Tensor opacities,
@@ -44,7 +43,6 @@ class _RasterizeGaussians : public torch::autograd::Function<_RasterizeGaussians
                                                 torch::Tensor scales,
                                                 torch::Tensor rotations,
                                                 torch::Tensor cov3Ds_precomp,
-                                                torch::Tensor primitive_e,
                                                 torch::Tensor image_height,
                                                 torch::Tensor image_width,
                                                 torch::Tensor tanfovx,
@@ -67,31 +65,28 @@ class _RasterizeGaussians : public torch::autograd::Function<_RasterizeGaussians
 
         camera_center = camera_center.contiguous();
 
-        auto [num_rendered, color, 
-              depth, 
-              radii, geomBuffer, binningBuffer, imgBuffer, out_err] = RasterizeGaussiansCUDA(bg,
-                                                                                            means3D,
-                                                                                            means2D,
-                                                                                            colors_precomp,
-                                                                                            opacities,
-                                                                                            scales,
-                                                                                            rotations,
-                                                                                            scale_modifier_val,
-                                                                                            cov3Ds_precomp,
-                                                                                            viewmatrix,
-                                                                                            projmatrix,
-                                                                                            tanfovx_val,
-                                                                                            tanfovy_val,
-                                                                                            image_height_val,
-                                                                                            image_width_val,
-                                                                                            sh,
-                                                                                            sh_degree_val,
-                                                                                            camera_center,
-                                                                                            prefiltered_val,
-                                                                                            primitive_e,
-                                                                                            false);
+        auto [num_rendered, color, radii, geomBuffer, binningBuffer, imgBuffer] = RasterizeGaussiansCUDA(bg,
+                                                                                                         means3D,
+                                                                                                         means2D,
+                                                                                                         colors_precomp,
+                                                                                                         opacities,
+                                                                                                         scales,
+                                                                                                         rotations,
+                                                                                                         scale_modifier_val,
+                                                                                                         cov3Ds_precomp,
+                                                                                                         viewmatrix,
+                                                                                                         projmatrix,
+                                                                                                         tanfovx_val,
+                                                                                                         tanfovy_val,
+                                                                                                         image_height_val,
+                                                                                                         image_width_val,
+                                                                                                         sh,
+                                                                                                         sh_degree_val,
+                                                                                                         camera_center,
+                                                                                                         prefiltered_val,
+                                                                                                         false);
 
-        ctx->save_for_backward({colors_precomp, means3D, scales, rotations, cov3Ds_precomp, radii, sh, geomBuffer, binningBuffer, imgBuffer, primitive_e});
+        ctx->save_for_backward({colors_precomp, means3D, scales, rotations, cov3Ds_precomp, radii, sh, geomBuffer, binningBuffer, imgBuffer});
         ctx->saved_data["num_rendered"] = num_rendered;
         ctx->saved_data["background"] = bg;
         ctx->saved_data["scale_modifier"] = scale_modifier_val;
@@ -104,17 +99,13 @@ class _RasterizeGaussians : public torch::autograd::Function<_RasterizeGaussians
         ctx->saved_data["sh_degree"] = sh_degree_val;
         ctx->saved_data["camera_center"] = camera_center;
         ctx->saved_data["prefiltered"] = prefiltered_val;
-        return {color, 
-                depth,
-                radii, out_err};
+        return {color, radii};
     }
 
     static torch::autograd::tensor_list backward(torch::autograd::AutogradContext* ctx, torch::autograd::tensor_list grad_outputs)
     {
         auto grad_out_color = grad_outputs[0];
-        auto grad_out_depth = grad_outputs[1];
-        auto grad_out_radii = grad_outputs[2];
-        auto grad_out_err = grad_outputs[3];
+        auto grad_out_radii = grad_outputs[1];
 
         auto num_rendered = ctx->saved_data["num_rendered"].to<int>();
         auto saved = ctx->get_saved_variables();
@@ -128,33 +119,29 @@ class _RasterizeGaussians : public torch::autograd::Function<_RasterizeGaussians
         auto geomBuffer = saved[7];
         auto binningBuffer = saved[8];
         auto imgBuffer = saved[9];
-        auto primitive_e = saved[10];
 
-        auto [grad_means2D, grad_colors_precomp, grad_opacities, grad_means3D, grad_cov3Ds_precomp, grad_sh, grad_scales, grad_rotations, grad_primitive_e] =
-                RasterizeGaussiansBackwardCUDA(ctx->saved_data["background"].to<torch::Tensor>(),
-                                                means3D,
-                                                radii,
-                                                colors_precomp,
-                                                scales,
-                                                rotations,
-                                                ctx->saved_data["scale_modifier"].to<float>(),
-                                                cov3Ds_precomp,
-                                                ctx->saved_data["viewmatrix"].to<torch::Tensor>(),
-                                                ctx->saved_data["projmatrix"].to<torch::Tensor>(),
-                                                ctx->saved_data["tanfovx"].to<float>(),
-                                                ctx->saved_data["tanfovy"].to<float>(),
-                                                grad_out_color,
-                                                sh,
-                                                ctx->saved_data["sh_degree"].to<int>(),
-                                                ctx->saved_data["camera_center"].to<torch::Tensor>(),
-                                                geomBuffer,
-                                                num_rendered,
-                                                binningBuffer,
-                                                imgBuffer,
-                                                grad_out_depth,
-                                                grad_out_err,
-                                                primitive_e,
-                                                false);
+        auto [grad_means2D, grad_colors_precomp, grad_opacities, grad_means3D, grad_cov3Ds_precomp, grad_sh, grad_scales, grad_rotations] =
+            RasterizeGaussiansBackwardCUDA(ctx->saved_data["background"].to<torch::Tensor>(),
+                                           means3D,
+                                           radii,
+                                           colors_precomp,
+                                           scales,
+                                           rotations,
+                                           ctx->saved_data["scale_modifier"].to<float>(),
+                                           cov3Ds_precomp,
+                                           ctx->saved_data["viewmatrix"].to<torch::Tensor>(),
+                                           ctx->saved_data["projmatrix"].to<torch::Tensor>(),
+                                           ctx->saved_data["tanfovx"].to<float>(),
+                                           ctx->saved_data["tanfovy"].to<float>(),
+                                           grad_out_color,
+                                           sh,
+                                           ctx->saved_data["sh_degree"].to<int>(),
+                                           ctx->saved_data["camera_center"].to<torch::Tensor>(),
+                                           geomBuffer,
+                                           num_rendered,
+                                           binningBuffer,
+                                           imgBuffer,
+                                           false);
 
         // return gradients for all inputs, 19 in total.
         return {grad_means3D,
@@ -165,7 +152,6 @@ class _RasterizeGaussians : public torch::autograd::Function<_RasterizeGaussians
                 grad_scales,
                 grad_rotations,
                 grad_cov3Ds_precomp,
-                grad_primitive_e,
                 torch::Tensor(), // from here placeholder, not used: #forwards args = #backwards args.
                 torch::Tensor(),
                 torch::Tensor(),
@@ -194,18 +180,14 @@ class GaussianRasterizer : torch::nn::Module {
         return visible;
     }
 
-    std::tuple<torch::Tensor
-             , torch::Tensor
-             , torch::Tensor
-             , torch::Tensor> forward(torch::Tensor means3D,
-                                      torch::Tensor means2D,
-                                      torch::Tensor opacities,
-                                      torch::Tensor primitive_e,
-                                      torch::Tensor shs = torch::Tensor(),
-                                      torch::Tensor colors_precomp = torch::Tensor(),
-                                      torch::Tensor scales = torch::Tensor(),
-                                      torch::Tensor rotations = torch::Tensor(),
-                                      torch::Tensor cov3D_precomp = torch::Tensor())
+    std::tuple<torch::Tensor, torch::Tensor> forward(torch::Tensor means3D,
+                                                     torch::Tensor means2D,
+                                                     torch::Tensor opacities,
+                                                     torch::Tensor shs = torch::Tensor(),
+                                                     torch::Tensor colors_precomp = torch::Tensor(),
+                                                     torch::Tensor scales = torch::Tensor(),
+                                                     torch::Tensor rotations = torch::Tensor(),
+                                                     torch::Tensor cov3D_precomp = torch::Tensor())
     {
         if ((shs.defined() && colors_precomp.defined()) || (!shs.defined() && !colors_precomp.defined())) {
             throw std::invalid_argument("Please provide exactly one of either SHs or precomputed colors!");
@@ -231,15 +213,10 @@ class GaussianRasterizer : torch::nn::Module {
         if (!cov3D_precomp.defined()) {
             cov3D_precomp = torch::empty({0}, device);
         }
-        if (!primitive_e.defined()) {
-            primitive_e = torch::empty({0}, device);
-        }
 
-        auto result = rasterize_gaussians(means3D, means2D, primitive_e, shs, colors_precomp, opacities, scales, rotations, cov3D_precomp, raster_settings_);
+        auto result = rasterize_gaussians(means3D, means2D, shs, colors_precomp, opacities, scales, rotations, cov3D_precomp, raster_settings_);
 
-        return {result[0],
-                result[1], 
-                result[2], result[3]};
+        return {result[0], result[1]};
     }
 
     private:

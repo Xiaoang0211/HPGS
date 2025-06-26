@@ -32,6 +32,7 @@ GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, SensorT>::
                                                                                           gs::DataQueue& data_queue,
                                                                                           const Image<float>& depth_img,
                                                                                           const Image<rgb_t>* colour_img,
+                                                                                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
                                                                                           const Image<semantics_t>* class_img,
                                                                                           const Eigen::Matrix4f& T_WS,
                                                                                           const int frame) :
@@ -44,6 +45,7 @@ GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, SensorT>::
         data_queue_(data_queue),
         depth_img_(depth_img),
         colour_img_(colour_img),
+        keypoints_(keypoints),
         class_img_(class_img),
         T_WS_(T_WS),
         frame_(frame),
@@ -185,56 +187,107 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
     cv::Mat cv_src_img(colour_img_->height(), colour_img_->width(), CV_8UC3, color_data_.data());
     data_packet_.rgb = cv_src_img;
 
-    gs::QTree qtree(gs_model_.optimParams.qtree_thresh, gs_model_.optimParams.qtree_min_pixel_size, cv_src_img);
+    gs::QTree qtree(gs_model_.optimParams.qtree_min_pixel_size, 
+                    cv_src_img, // type cv::Mat
+                    keypoints_, // type vector<Eigen::Vector2f>
+                    gs_model_.optimParams.qtree_min_num_leaves, 
+                    gs_model_.optimParams.post_subdivision);
+                
     qtree.subdivide();
-    std::vector<gs::Node> nodes = qtree.getAllNodes();
 
-    std::vector<gs::Point> positions(nodes.size());
-    std::vector<gs::Color> colors(nodes.size());
-    std::vector<float> scales(nodes.size(), 0);
+    std::vector<gs::Node*> nodes = qtree.getAllLeafPtrs();
+    int num_nodes = nodes.size();
+    int num_keypoints = keypoints_.size();
+
+    std::vector<gs::Point> positions(num_nodes);
+    std::vector<gs::Color> colors(num_nodes);
+    std::vector<float> scales(num_nodes, 0);
+
+    std::vector<gs::Point> positions_keypoints;
+    std::vector<gs::Color> colors_keypoints;
+    std::vector<float> scales_keypoints;
+    
+    positions_keypoints.reserve(num_keypoints);
+    colors_keypoints.reserve(num_keypoints);
+    scales_keypoints.reserve(num_keypoints);
 
 #pragma omp parallel for
     for (int i = 0; i < nodes.size(); i++) {
-        gs::Node node = nodes[i];
+        gs::Node* node_ptr = nodes[i];
+        const bool keypoint_exists = node_ptr->has_keypoint_;
 
         // Backproject the cell center
         Eigen::Vector3f center;
-        Eigen::Vector2f p2d(node.getOriginX() + 0.5 * node.getWidth(), node.getOriginY() + 0.5 * node.getHeight());
-        sensor_.model.backProject(p2d, &center);
+        Eigen::Vector2f p2d(node_ptr->getOriginX() + 0.5 * node_ptr->getWidth(), node_ptr->getOriginY() + 0.5 * node_ptr->getHeight());
+
+        // add position color scales of center point
 
         const Eigen::Vector2i pixel = se::round_pixel(p2d);
         const int pixel_idx = pixel.x() + depth_img_.width() * pixel.y();
         const float depth_value = depth_img_[pixel_idx];
-        if (depth_value < sensor_.near_plane) {
-            continue;
-        }
-        center *= depth_value;
-        center = (T_WS_ * center.homogeneous()).head<3>();
-
-        // Check the vicinity of the backprojected cell center in 3D space
-        auto center_data = map_.getData(center);
-        if (center_data.weight != 1) {
+        if (depth_value < sensor_.near_plane && !keypoint_exists) {
             continue;
         }
 
-        float length = sqrt(pow(0.5 * node.getWidth(), 2) + pow(0.5 * node.getHeight(), 2));
+        // scale of the center gaussian
+        float length = sqrt(pow(0.5 * node_ptr->getWidth(), 2) + pow(0.5 * node_ptr->getHeight(), 2));
         float scale = (depth_value * length) / sensor_.model.focalLengthU();
-        scales[i] = scale;
 
-        gs::Point center_p3d;
-        center_p3d.x = center[0];
-        center_p3d.y = center[1];
-        center_p3d.z = center[2];
-        positions[i] = center_p3d;
+        if (depth_value >= sensor_.near_plane) {
+            center *= depth_value;
+            center = (T_WS_ * center.homogeneous()).head<3>();
 
-        auto center_rgb = (*colour_img_)[pixel_idx];
-        gs::Color center_color;
-        center_color.r = center_rgb.r;
-        center_color.g = center_rgb.g;
-        center_color.b = center_rgb.b;
-        colors[i] = center_color;
+            // Check the vicinity of the backprojected cell center in 3D space
+            // this is only for reprojected depth points
+            auto center_data = map_.getData(center);
+            if (center_data.weight != 1) {
+                continue;
+            }
+
+            scales[i] = scale;
+
+            gs::Point center_p3d;
+            center_p3d.x = center[0];
+            center_p3d.y = center[1];
+            center_p3d.z = center[2];
+            positions[i] = center_p3d;
+
+            auto center_rgb = (*colour_img_)[pixel_idx];
+            gs::Color center_color;
+            center_color.r = center_rgb.r;
+            center_color.g = center_rgb.g;
+            center_color.b = center_rgb.b;
+            colors[i] = center_color;
+        }
+
+        if (keypoint_exists) {
+            // add position color scales of keypoint
+            Eigen::Vector2f keypoint_2d = node_ptr->getNodeKeypoint();
+            Eigen::Vector3f mappoint = node_ptr->getNodeMappoint();
+
+            // keypoint scale
+            float keypoint_scale = 0.02f; // in meter, better scale: s = (z * 1.5) / f?
+            scales_keypoints.push_back(keypoint_scale);
+
+            // keypoint 3d position
+            gs::Point keypoint_3d;
+            keypoint_3d.x = mappoint[0];
+            keypoint_3d.y = mappoint[1];
+            keypoint_3d.z = mappoint[2];
+            positions_keypoints.push_back(keypoint_3d);
+
+            // keypoint color
+            const int x = static_cast<int>(keypoint_2d.x());
+            const int y = static_cast<int>(keypoint_2d.y());
+            const int keypoint_pix_idx = x + depth_img_.width() * y;
+            auto keypoint_rgb = (*colour_img_)[keypoint_pix_idx];
+            gs::Color keypoint_color;
+            keypoint_color.r = keypoint_rgb.r;
+            keypoint_color.g = keypoint_rgb.g;
+            keypoint_color.b = keypoint_rgb.b;
+            colors_keypoints.push_back(keypoint_color);
+        }
     }
-
     // Filter out invalid cells
     std::vector<gs::Point> valid_positions;
     std::vector<gs::Color> valid_colors;
@@ -247,6 +300,27 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         }
     }
 
+    // Control the growth rate introduced by new keypoints
+    int P = gs_model_.Get_size() + valid_positions.size();
+    int max_keypoints = static_cast<int>(gs_model_.optimParams.growth_rate * P);
+
+    // Only subsample if needed
+    if (num_keypoints > max_keypoints) {
+        std::mt19937 rng(std::random_device{}());
+        
+        // Unrolled Fisher-Yates
+        for (int i = positions_keypoints.size() - 1; i > 0; --i) {
+            std::uniform_int_distribution<int> dist(0, i);
+            int j = dist(rng);
+            std::swap(positions_keypoints[i], positions_keypoints[j]);
+            std::swap(colors_keypoints[i], colors_keypoints[j]);
+            std::swap(scales_keypoints[i], scales_keypoints[j]);
+        }
+        positions_keypoints.resize(max_keypoints);
+        colors_keypoints.resize(max_keypoints);
+        scales_keypoints.resize(max_keypoints);
+    }
+    
     // Update keyframe list
     if (valid_positions.size() > gs_model_.optimParams.kf_thresh) {
         isKeyframe_ = true;
@@ -258,6 +332,23 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
             gt_img_list_.pop_back();
         }
     }
+
+    valid_positions.reserve(valid_positions.size() + positions_keypoints.size());
+    valid_colors.reserve(valid_colors.size() + colors_keypoints.size());
+    valid_scales.reserve(valid_scales.size() + scales_keypoints.size());
+
+    // Use insert with move iterators
+    valid_positions.insert(valid_positions.end(), 
+                          std::make_move_iterator(positions_keypoints.begin()),
+                          std::make_move_iterator(positions_keypoints.end()));
+                        
+    valid_colors.insert(valid_colors.end(),
+                        std::make_move_iterator(colors_keypoints.begin()),
+                        std::make_move_iterator(colors_keypoints.end()));
+                    
+    valid_scales.insert(valid_scales.end(),
+                        std::make_move_iterator(scales_keypoints.begin()),
+                        std::make_move_iterator(scales_keypoints.end()));
 
     updateGSModel(valid_positions, valid_colors, valid_scales);
 }
@@ -300,7 +391,7 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
 template<Colour ColB, Semantics SemB, int BlockSize, typename SensorT>
 void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, SensorT>::updateGSModel(std::vector<gs::Point>& positions, std::vector<gs::Color>& colors, std::vector<float>& scales)
 {
-    // Add new primitives to the Gaussian Spaltting model
+    // Spawn new primitives to the Gaussian Spaltting model
     if (positions.size() != 0) {
         torch::NoGradGuard no_grad;
         gs_model_.Add_gaussians(positions, colors, scales);
@@ -315,64 +406,10 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
 
     // Start online optimization
     for (int iter = 0; iter < iters; iter++) {
-        // —— Densification every 10 iters ——
-        if (iter % 10 == 0) { 
-            // no gradient tracking for densification
-            auto [image, 
-                  depth_img, 
-                  viewspace_point_tensor, visibility_filter, radii, aux_err] = gs::render(cur_gs_cam_, gs_model_);
-            // std::cout << "image.sizes(): " << image.sizes() << "\n";
-
-            // Compute metric for densification
-            auto pixel_err = torch::abs(image - cur_gt_img_).mean(0);
-
-            auto Laux = (pixel_err.detach() * aux_err.squeeze(0)).sum();
-            auto E_k = torch::autograd::grad({Laux}, {gs_model_.Get_e()})[0];
-
-            // // log for E_k
-            // std::cout << "The size of E_k is: " << E_k.sizes() << "\n";
-            // auto E_k_cpu = E_k.detach().to(torch::kCPU).view({-1});
-
-            // // Open in append or write mode (overwrite each time if needed)
-            // std::ofstream file("E_k.csv", std::ios::out); // Use std::ios::app to append if multiple writes
-
-            // if (file.is_open()) {
-            //     for (int i = 0; i < E_k_cpu.numel(); ++i) {
-            //         file << E_k_cpu[i].item<float>();
-            //         if (i != E_k_cpu.numel() - 1) file << ",";  // comma-separated
-            //     }
-            //     file << std::endl; // new line for next iteration if appending
-            //     file.close();
-            // } else {
-            //     std::cerr << "Unable to open E_k.csv for writing." << std::endl;
-            // }
-
-            // ===== here comes the densification logic based on E_k =====
-            // identify which gaussian primitives require densification
-            // get the mask of E_K where the per-primitive error is above a threshold
-            // torch::Tensor mask = E_k > gs_model_.densify_thresh;
-
-            // split the Gaussians within their tiles based on image gradient
-            // {positions_new, colors_new, scales_new} = gs_model_.densifier.densify(cur_gt_img_,   
-                                                                                  // cur_gt_img_gray_, 
-                                                                                  // cur_gt_depth_,
-                                                                                  // viewspace_point_tensor, // 2d pix coord of the gaussian
-                                                                                  // radii, 
-                                                                                  // mask);
-
-            // Add new Gaussians to the gs model
-            //gs_model_.Add_gaussians(positions_new, colors_new, scales_new)
-            // ===========================================================
-        }
-        
-        auto [image, 
-              depth_img, 
-              viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam_, gs_model_);
-
+        auto [image, viewspace_point_tensor, visibility_filter, radii] = gs::render(cur_gs_cam_, gs_model_);
+        // Optimization
         // Loss Computations
         auto loss = gs::l1_loss(image, cur_gt_img_);
-
-        // Optimization
         loss.backward();
         gs_model_.optimizer->step();
         gs_model_.optimizer->zero_grad(true);
@@ -386,24 +423,22 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         }
     }
 
-    // if (!isKeyframe_) {
-    //     int kf_iters = gs_model_.optimParams.random_kf_num;
-    //     if (kf_indices.size() < kf_iters) {
-    //         kf_iters = kf_indices.size();
-    //     }
-    //     for (int i = 0; i < kf_iters; i++) {
-    //         auto kf_gt_img = gt_img_list_[kf_indices[i]];
-    //         auto kf_gs_cam = gs_cam_list_[kf_indices[i]];
+    if (!isKeyframe_) {
+        int kf_iters = gs_model_.optimParams.random_kf_num;
+        if (kf_indices.size() < kf_iters) {
+            kf_iters = kf_indices.size();
+        }
+        for (int i = 0; i < kf_iters; i++) {
+            auto kf_gt_img = gt_img_list_[kf_indices[i]];
+            auto kf_gs_cam = gs_cam_list_[kf_indices[i]];
 
-    //         auto [image, viewspace_point_tensor, visibility_filter, radii
-    //             , err
-    //         ] = gs::render(kf_gs_cam, gs_model_);
-    //         auto loss = gs::l1_loss(image, kf_gt_img);
-    //         loss.backward();
-    //         gs_model_.optimizer->step();
-    //         gs_model_.optimizer->zero_grad(true);
-    //     }
-    // }
+            auto [image, viewspace_point_tensor, visibility_filter, radii] = gs::render(kf_gs_cam, gs_model_);
+            auto loss = gs::l1_loss(image, kf_gt_img);
+            loss.backward();
+            gs_model_.optimizer->step();
+            gs_model_.optimizer->zero_grad(true);
+        }
+    }
 
     // Collect mapping statistics
     torch::cuda::synchronize();

@@ -10,10 +10,7 @@
 #include "rasterizer.cuh"
 
 namespace gs {
-inline std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, 
-                  torch::Tensor, 
-                  torch::Tensor, 
-                  torch::Tensor>
+inline std::tuple<torch::Tensor, torch::Tensor, torch::Tensor, torch::Tensor>
 render(Camera& viewpoint_camera, GaussianModel& gaussianModel, float scaling_modifier = 1.0, torch::Tensor override_color = torch::empty({}))
 {
     // Ensure background tensor (bg_color) is on GPU!
@@ -36,14 +33,11 @@ render(Camera& viewpoint_camera, GaussianModel& gaussianModel, float scaling_mod
     GaussianRasterizer rasterizer = GaussianRasterizer(raster_settings);
 
     auto means3D = gaussianModel.Get_xyz();
-    // auto means2D = torch::zeros_like(gaussianModel.Get_xyz()).requires_grad_(false);
     auto means2D = torch::zeros({means3D.size(0), 2}, means3D.options()).requires_grad_(false);
-
     auto opacity = gaussianModel.Get_opacity();
     auto scales = gaussianModel.Get_scaling();
     auto rotations = gaussianModel.Get_rotation();
     auto shs = gaussianModel.Get_features();
-    auto primitive_e = gaussianModel.Get_e();
 
     auto colors_precomp = torch::Tensor();
     auto cov3D_precomp = torch::Tensor();
@@ -51,15 +45,9 @@ render(Camera& viewpoint_camera, GaussianModel& gaussianModel, float scaling_mod
     torch::cuda::synchronize();
 
     // Rasterize visible Gaussians to image, obtain their radii (on screen).
-    auto [rendererd_image, 
-          rendered_depth, 
-          radii, rendered_err] = rasterizer.forward(means3D, means2D, opacity
-                                                    , primitive_e
-                                                    , shs, colors_precomp, scales, rotations, cov3D_precomp);
+    auto [rendererd_image, radii] = rasterizer.forward(means3D, means2D, opacity, shs, colors_precomp, scales, rotations, cov3D_precomp);
 
     // Apply visibility filter to remove occluded Gaussians.
-    return {rendererd_image, 
-            rendered_depth, 
-            means2D, radii > 0, radii, rendered_err};
+    return {rendererd_image, means2D, radii > 0, radii};
 }
 } // namespace gs

@@ -83,9 +83,7 @@ torch::Tensor GaussianModel::Get_covariance(float scaling_modifier)
 * \param[in]  scales    Vector of input scales of float type
 */
 void GaussianModel::Add_gaussians(std::vector<Point>& positions, std::vector<Color>& colors, std::vector<float>& scales)
-{   
-    const int num_new_gaussians = scales.size();
-
+{
     const auto pointType = torch::TensorOptions().dtype(torch::kFloat32);
     const auto colorType = torch::TensorOptions().dtype(torch::kUInt8);
     if (_init_status == false) {
@@ -102,9 +100,6 @@ void GaussianModel::Add_gaussians(std::vector<Point>& positions, std::vector<Col
         features.index_put_({Slice(), Slice(torch::indexing::None, 3), 0}, fused_color);
         _features_dc = features.index({Slice(), Slice(), Slice(0, 1)}).transpose(1, 2).contiguous().set_requires_grad(true);
         _features_rest = features.index({Slice(), Slice(), Slice(1, torch::indexing::None)}).transpose(1, 2).contiguous().set_requires_grad(true);
-
-        // aux variable for densification based on pixel errors, the auxiliary variable e is initialized as 0 and will not be updated
-        _e = torch::zeros({num_new_gaussians, 1}, torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA).requires_grad(true));
 
         training_setup();
         _init_status = true;
@@ -124,16 +119,12 @@ void GaussianModel::Add_gaussians(std::vector<Point>& positions, std::vector<Col
         auto new_features_dc = features.index({Slice(), Slice(), Slice(0, 1)}).transpose(1, 2).contiguous().set_requires_grad(true);
         auto new_features_rest = features.index({Slice(), Slice(), Slice(1, torch::indexing::None)}).transpose(1, 2).contiguous().set_requires_grad(true);
 
-        // aux variable for densification based on pixel errors
-        auto new_e = torch::zeros({num_new_gaussians, 1}, torch::TensorOptions().dtype(torch::kFloat32).device(torch::kCUDA).requires_grad(true));
-
         cat_tensors_to_optimizer(optimizer.get(), new_xyz, _xyz, 0);
         cat_tensors_to_optimizer(optimizer.get(), new_features_dc, _features_dc, 1);
         cat_tensors_to_optimizer(optimizer.get(), new_features_rest, _features_rest, 2);
         cat_tensors_to_optimizer(optimizer.get(), new_scaling, _scaling, 3);
         cat_tensors_to_optimizer(optimizer.get(), new_rotation, _rotation, 4);
         cat_tensors_to_optimizer(optimizer.get(), new_opacity, _opacity, 5);
-        cat_tensors_to_optimizer(optimizer.get(), new_e, _e, 6);
     }
 }
 
@@ -141,8 +132,7 @@ void GaussianModel::Add_gaussians(std::vector<Point>& positions, std::vector<Col
 void GaussianModel::training_setup()
 {
     std::vector<torch::optim::OptimizerParamGroup> optimizer_params_groups;
-    // optimizer_params_groups.reserve(6);
-    optimizer_params_groups.reserve(7);
+    optimizer_params_groups.reserve(6);
 
     optimizer_params_groups.push_back(torch::optim::OptimizerParamGroup({_xyz}, std::make_unique<torch::optim::AdamOptions>(optimParams.position_lr)));
     optimizer_params_groups.push_back(torch::optim::OptimizerParamGroup({_features_dc}, std::make_unique<torch::optim::AdamOptions>(optimParams.feature_lr)));
@@ -150,7 +140,6 @@ void GaussianModel::training_setup()
     optimizer_params_groups.push_back(torch::optim::OptimizerParamGroup({_scaling}, std::make_unique<torch::optim::AdamOptions>(optimParams.scaling_lr)));
     optimizer_params_groups.push_back(torch::optim::OptimizerParamGroup({_rotation}, std::make_unique<torch::optim::AdamOptions>(optimParams.rotation_lr)));
     optimizer_params_groups.push_back(torch::optim::OptimizerParamGroup({_opacity}, std::make_unique<torch::optim::AdamOptions>(optimParams.opacity_lr)));
-    optimizer_params_groups.push_back(torch::optim::OptimizerParamGroup({_e}, std::make_unique<torch::optim::AdamOptions>(optimParams.e_lr))); // e_lr = 0.0
 
     static_cast<torch::optim::AdamOptions&>(optimizer_params_groups[0].options()).eps(1e-15);
     static_cast<torch::optim::AdamOptions&>(optimizer_params_groups[1].options()).eps(1e-15);
@@ -158,7 +147,6 @@ void GaussianModel::training_setup()
     static_cast<torch::optim::AdamOptions&>(optimizer_params_groups[3].options()).eps(1e-15);
     static_cast<torch::optim::AdamOptions&>(optimizer_params_groups[4].options()).eps(1e-15);
     static_cast<torch::optim::AdamOptions&>(optimizer_params_groups[5].options()).eps(1e-15);
-    static_cast<torch::optim::AdamOptions&>(optimizer_params_groups[6].options()).eps(1e-15); // for e
 
     optimizer = std::make_unique<torch::optim::Adam>(optimizer_params_groups, torch::optim::AdamOptions(0.f).eps(1e-15));
 }

@@ -32,14 +32,9 @@ namespace BACKWARD {
         const uint32_t* n_contrib,
         const float* dL_dpixels,
         float3* dL_dmean2D,
-        glm::vec3* dL_dmeans,
         float4* dL_dconic2D,
         float* dL_dopacity,
-        float* dL_dcolors,
-        const float* dL_dout_depth,
-        const float* viewmatrix,
-        const float* dL_dout_err,
-        float* dL_dprimitive_e);
+        float* dL_dcolors);
 
     void preprocess(
         int P, int D, int M,

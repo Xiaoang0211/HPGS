@@ -5,7 +5,6 @@
   "opacity_lr": 0.05,
   "scaling_lr": 0.001,
   "rotation_lr": 0.001,
-  "e_lr": 0.0,
   "lambda_dssim": 0.2,
   "qtree_thresh": 0.1,
   "qtree_min_pixel_size": 1,
@@ -14,5 +13,7 @@
   "non_kf_iters": 5,
   "random_kf_num": 5,
   "global_iters": 20,
-  "keep_all_frames": false
+  "keep_all_frames": false,
+  "qtree_min_num_leaves": 6400,
+  "post_subdivision": false
 }

@@ -33,6 +33,9 @@ struct OptimizationParameters {
     int random_kf_num = 5;
     int global_iters = 10;
     bool keep_all_frames = false;
+    int qtree_min_num_leaves = 16000; // for 640x480 images
+    bool post_subdivision = false; 
+    float growth_rate = 0.05;
 };
 
 OptimizationParameters read_optim_params_from_json(const std::string& path);
@@ -78,10 +81,6 @@ class GaussianModel {
     {
         return _xyz.size(0);
     }
-    inline torch::Tensor Get_e()
-    {
-        return _e;
-    }
     torch::Tensor Get_features() const;
     torch::Tensor Get_covariance(float scaling_modifier = 1.0);
 
@@ -106,8 +105,6 @@ class GaussianModel {
     torch::Tensor _opacity;
     torch::Tensor _features_dc;
     torch::Tensor _features_rest;
-    // For densification
-    torch::Tensor _e;
 };
 
 void cat_tensors_to_optimizer(torch::optim::Adam* optimizer, torch::Tensor& extension_tensor, torch::Tensor& old_tensor, int param_position);

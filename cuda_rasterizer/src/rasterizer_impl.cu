@@ -173,8 +173,8 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
                                         int D,
                                         int M,
                                         const float* background,
-                                        const int width, // image width
-                                        int height,      // image height
+                                        const int width,
+                                        int height,
                                         const float* means3D,
                                         float* means2D,
                                         const float* shs,
@@ -191,9 +191,6 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
                                         float tan_fovy,
                                         const bool prefiltered,
                                         float* out_color,
-                                        float* out_depth,
-                                        float* out_err,
-                                        const float* primitive_e,
                                         int* radii,
                                         bool debug)
 {
@@ -209,7 +206,6 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
         radii = geomState.internal_radii;
     }
 
-    // BLOCK_X 16, BLOCK_Y 16
     dim3 tile_grid((width + BLOCK_X - 1) / BLOCK_X, (height + BLOCK_Y - 1) / BLOCK_Y, 1);
     dim3 block(BLOCK_X, BLOCK_Y, 1);
 
@@ -273,7 +269,7 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
         P, geomState.means2D, geomState.depths, geomState.point_offsets, binningState.point_list_keys_unsorted, binningState.point_list_unsorted, radii, tile_grid) CHECK_CUDA(, debug)
 
         int bit = getHigherMsb(tile_grid.x * tile_grid.y);
-
+    
     // P 是Gaussian primitive的个数
     cudaError_t err = cudaMemcpy(
         reinterpret_cast<float2*>(means2D),             // 目标
@@ -318,16 +314,11 @@ int CudaRasterizer::Rasterizer::forward(std::function<char*(size_t)> geometryBuf
                                height,
                                geomState.means2D,
                                feature_ptr,
-                               geomState.depths,
                                geomState.conic_opacity,
                                imgState.accum_alpha,
                                imgState.n_contrib,
                                background,
-                               out_color,
-                               out_depth,
-                               out_err,
-                               primitive_e
-                                ),
+                               out_color),
                debug)
 
     return num_rendered;
@@ -368,9 +359,6 @@ void CudaRasterizer::Rasterizer::backward(const int P,
                                           float* dL_dsh,
                                           float* dL_dscale,
                                           float* dL_drot,
-                                          const float* dL_dout_depth,
-                                          const float* dL_dout_err,
-                                          float* dL_dprimitive_e,
                                           bool debug)
 {
     GeometryState geomState = GeometryState::fromChunk(geom_buffer, P);
@@ -405,14 +393,9 @@ void CudaRasterizer::Rasterizer::backward(const int P,
                                 imgState.n_contrib,
                                 dL_dpix,
                                 (float3*) dL_dmean2D,
-                                (glm::vec3*) dL_dmean3D,
                                 (float4*) dL_dconic,
                                 dL_dopacity,
-                                dL_dcolor,
-                                dL_dout_depth,
-                                viewmatrix,
-                                dL_dout_err,
-                                dL_dprimitive_e),
+                                dL_dcolor),
                debug)
 
     // Take care of the rest of preprocessing. Was the precomputed covariance

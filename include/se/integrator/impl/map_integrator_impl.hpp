@@ -35,6 +35,7 @@ struct GSIntegrateImplD {
                           gs::DataQueue& data_queue,
                           const Image<float>& depth_img,
                           const Image<rgb_t>* colour_img,
+                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
                           const Image<semantics_t>* class_img,
                           const Eigen::Matrix4f& T_WS,
                           const unsigned int frame);
@@ -52,6 +53,7 @@ struct GSIntegrateImplD<Field::TSDF, Res::Single> {
                           gs::DataQueue& data_queue,
                           const Image<float>& depth_img,
                           const Image<rgb_t>* colour_img,
+                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
                           const Image<semantics_t>* class_img,
                           const Eigen::Matrix4f& T_WS,
                           const unsigned int frame)
@@ -64,9 +66,7 @@ struct GSIntegrateImplD<Field::TSDF, Res::Single> {
 
         // Update
         TICK("update")
-        GSUpdater updater(map, sensor, gs_model, gs_cam_list, gt_img_list, 
-                          gt_depth_list, 
-                          data_queue, depth_img, colour_img, class_img, T_WS, frame);
+        GSUpdater updater(map, sensor, gs_model, gs_cam_list, gt_img_list, gt_depth_list, data_queue, depth_img, colour_img, keypoints, class_img, T_WS, frame);
         updater(block_ptrs);
         TOCK("update")
     }
@@ -89,6 +89,7 @@ typename std::enable_if_t<MapT::col_ == Colour::On> integrate(MapT& map,
                                                               gs::DataQueue& data_queue,
                                                               const Image<float>& depth_img,
                                                               const Image<rgb_t>& colour_img,
+                                                              const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
                                                               const SensorT& sensor,
                                                               const Eigen::Matrix4f& T_WS,
                                                               const unsigned int frame)
@@ -98,9 +99,7 @@ typename std::enable_if_t<MapT::col_ == Colour::On> integrate(MapT& map,
         oss << "depth (" << depth_img.width() << "x" << depth_img.height() << ") and colour (" << colour_img.width() << "x" << colour_img.height() << ") image dimensions differ";
         throw std::invalid_argument(oss.str());
     }
-    details::GSIntegrateImpl<MapT>::integrate(map, sensor, gs_model, gs_cam_list, gt_img_list, 
-                                              gt_depth_list, 
-                                              data_queue, depth_img, &colour_img, nullptr, T_WS, frame);
+    details::GSIntegrateImpl<MapT>::integrate(map, sensor, gs_model, gs_cam_list, gt_img_list, gt_depth_list, data_queue, depth_img, &colour_img, keypoints, nullptr, T_WS, frame);
 }
 
 } // namespace integrator

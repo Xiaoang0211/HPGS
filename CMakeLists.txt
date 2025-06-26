@@ -3,9 +3,7 @@
 # SPDX-License-Identifier: CC0-1.0
 
 cmake_minimum_required(VERSION 3.24)
-project(GSFusion LANGUAGES C CXX CUDA)
-
-# set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -G -g")
+project(HPGS LANGUAGES C CXX CUDA)
 
 option(SE_OPENMP "Compile supereight with OpenMP" ON)
 
@@ -32,6 +30,8 @@ find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc)
 find_package(Boost REQUIRED) # We only need Boost.Pool which is a header-only library.
 find_package(octomap REQUIRED)
 find_package(TBB COMPONENTS tbb)
+# For ROS2 dependencies
+find_package(ament_cmake REQUIRED)
 if(TBB_tbb_FOUND)
     set(SE_TBB 1)
 endif()
@@ -168,3 +168,4 @@ set_target_properties(${LIB_NAME} PROPERTIES EXPORT_NAME Supereight2)
 
 # Compile the app
 add_subdirectory(app)
+ament_package()

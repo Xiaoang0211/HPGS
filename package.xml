@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>HPGS</name>
+  <version>0.0.1</version>
+  <description>A ROS2 module for online Gaussian mapping</description>
+
+  <maintainer email="jesse1008611@gmail.com">Xiaoang Zhang</maintainer>
+  <license>MIT</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>cv_bridge</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>message_filters</depend>
+  <depend>image_transport</depend>
+  <depend>opencv4</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

@@ -1,0 +1,10 @@
+%YAML:1.2
+topic_vslam_driver: /torpapa/vslam_handshake_request
+topic_gsfusion_acknowledge: /torpapa/gsfusion_ack
+topic_rgb: /torpapa/rgb
+topic_depth: /torpapa/depth
+topic_map_points: /torpapa/map_points
+topic_keypoints: /torpapa/keypoints
+topic_odometry: /torpapa/odom
+topic_odometry_gt: /torpapa/odom_gt
+use_gt_pose: true

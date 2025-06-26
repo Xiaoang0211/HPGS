@@ -40,5 +40,8 @@ app:
   integration_rate:           1
   rendering_rate:             1
   meshing_rate:               0
-  max_frames:                 610
+  max_frames:                 638
   log_file:                   "/tmp/log.tsv"
+
+vslam:
+  use_gt_pose:               true

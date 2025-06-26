@@ -41,18 +41,19 @@ class GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Sens
     };
 
     /**
-     * \param[in]  map         The reference to the map to be updated.
-     * \param[in]  sensor      The sensor model.
-     * \param[in]  gs_model    The Gaussian model.
-     * \param[in]  gs_cam_list The keyframe list of gs::Camera to store camera parameters.
-     * \param[in]  gt_img_list The keyframe list of torch::Tensor to store color images.
+     * \param[in]  map           The reference to the map to be updated.
+     * \param[in]  sensor        The sensor model.
+     * \param[in]  gs_model      The Gaussian model.
+     * \param[in]  gs_cam_list   The keyframe list of gs::Camera to store camera parameters.
+     * \param[in]  gt_img_list   The keyframe list of torch::Tensor to store color images.
      * \param[in]  gt_depth_list The keyframe list of torch::Tensor to store depth images.
-     * \param[in]  data_queue  The queue to store visualization data for GUI
-     * \param[in]  depth_img   The depth image to be integrated.
-     * \param[in]  colour_img  The colour image to be integrated or nullptr if none.
-     * \param[in]  class_img   The semantic class image to be integrated or nullptr if none.
-     * \param[in]  T_WS        The transformation from sensor to world frame.
-     * \param[in]  frame       The frame number to be integrated.
+     * \param[in]  data_queue    The queue to store visualization data for GUI
+     * \param[in]  depth_img     The depth image to be integrated.
+     * \param[in]  colour_img    The colour image to be integrated or nullptr if none.
+     * \param[in]  keypoints     The keypoints.
+     * \param[in]  class_img     The semantic class image to be integrated or nullptr if none.
+     * \param[in]  T_WS          The transformation from sensor to world frame.
+     * \param[in]  frame         The frame number to be integrated.
      */
     GSUpdater(MapType& map,
               const SensorT& sensor,
@@ -63,6 +64,7 @@ class GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Sens
               gs::DataQueue& data_queue,
               const Image<float>& depth_img,
               const Image<rgb_t>* colour_img,
+              const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
               const Image<semantics_t>* class_img,
               const Eigen::Matrix4f& T_WS,
               const int frame);
@@ -81,6 +83,7 @@ class GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Sens
     const SensorT& sensor_;
     const Image<float>& depth_img_;
     const Image<rgb_t>* colour_img_;
+    const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints_;
     const Image<semantics_t>* class_img_;
     const Eigen::Matrix4f& T_WS_;
     const int frame_;

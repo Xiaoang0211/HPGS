@@ -1,132 +1,216 @@
-/*
- * SPDX-FileCopyrightText: 2024 Smart Robotics Lab, Technical University of Munich
- * SPDX-FileCopyrightText: 2024 Jiaxin Wei
- * SPDX-License-Identifier: BSD-3-Clause
- */
-
-#include <numeric>
-
 #include "gs/quad_tree.cuh"
+#include <tuple>
+#include <array>
+#include <queue>
 
 namespace gs {
 
-cv::Mat Node::getPixels(const cv::Mat& img) const
+struct LeafEntry {
+    Node* node;
+    size_t area;
+    bool operator<(const LeafEntry& rhs) const { return area < rhs.area; }
+};
+
+QTree::QTree(int min_pixel_size,
+                const cv::Mat& image,
+                const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+                int min_leaves,
+                bool post_subdivide)
+: root_(0, 0, image.cols, image.rows, keypoints),
+  min_pixel_size_(min_pixel_size),
+  min_leaves_(min_leaves),
+  post_subdivide_(post_subdivide)
 {
-    cv::Rect roi(x0_, y0_, width_, height_);
-    return img(roi);
+    all_leaves_ptrs_.reserve(min_leaves_);
 }
 
-float Node::computeError(const cv::Mat& img) const
-{
-    cv::Mat pixels = getPixels(img);
-    cv::Scalar avg_color = cv::mean(pixels);
+// helper to add in O(1)
+inline void QTree::addLeaf(Node* p) {
+    leaf_index_[p] = all_leaves_ptrs_.size();
+    all_leaves_ptrs_.push_back(p);
+}
 
-    std::vector<cv::Mat> channels;
-    cv::split(pixels, channels);
+// helper to remove in O(1)
+inline void QTree::removeLeaf(Node* p) {
+    size_t idx = leaf_index_[p];
+    Node* back = all_leaves_ptrs_.back();
+    all_leaves_ptrs_[idx]      = back;
+    leaf_index_[back]          = idx;
+    all_leaves_ptrs_.pop_back();
+    leaf_index_.erase(p);
+}
 
-    float r_mse = 0.0f, g_mse = 0.0f, b_mse = 0.0f;
+void QTree::subdivide() {
+    // 1) clear old leaves/map
+    all_leaves_ptrs_.clear();
+    leaf_index_.clear();
 
-    for (int i = 0; i < pixels.rows; i++) {
-        for (int j = 0; j < pixels.cols; j++) {
-            float r_diff = static_cast<float>(channels[0].at<uchar>(i, j)) - avg_color[0];
-            float g_diff = static_cast<float>(channels[1].at<uchar>(i, j)) - avg_color[1];
-            float b_diff = static_cast<float>(channels[2].at<uchar>(i, j)) - avg_color[2];
+    // 2) initial pass: fill leaves via recursive_subdivide()
+    //    make sure recursive_subdivide calls addLeaf(&node)
+    recursive_subdivide(root_);
 
-            r_mse += r_diff * r_diff;
-            g_mse += g_diff * g_diff;
-            b_mse += b_diff * b_diff;
+    if (!post_subdivide_)
+        return;
+
+    size_t curr_leaves = all_leaves_ptrs_.size();
+
+    // Keep doing “rounds” until we reach min_leaves_ or no more splits are possible
+    while (curr_leaves < size_t(min_leaves_)) {
+        // Take a snapshot of the *existing* leaves before this round
+        std::vector<Node*> round = all_leaves_ptrs_;
+        bool anySplit = false;
+
+        for (Node* leaf : round) {
+            // stop early if we hit min_leaves_
+            if (curr_leaves >= size_t(min_leaves_))
+                break;
+
+            // only split if big enough and still a leaf
+            if (leaf->children.empty() &&
+                leaf->getWidth()  > min_pixel_size_ &&
+                leaf->getHeight() > min_pixel_size_)
+            {
+                // remove this leaf
+                removeLeaf(leaf);
+
+                // split it, adding 4 children
+                subdivideLeaf(*leaf);
+                curr_leaves += 3;  // one leaf → four children = +3 net
+
+                // add the brand-new children to the global leaf list
+                for (auto& child : leaf->children) {
+                    addLeaf(&child);
+                }
+
+                anySplit = true;
+            }
         }
+
+        // if we made no progress in this entire round, give up
+        if (!anySplit)
+            break;
+    }
+}
+
+void QTree::subdivideLeaf(Node& node) {
+    if (!node.children.empty()) return;
+    int x0 = node.getOriginX();
+    int y0 = node.getOriginY();
+    int w = node.getWidth();
+    int h = node.getHeight();
+
+    const auto& pts = node.getPoints();
+    int xm = x0 + w/2, ym = y0 + h/2;
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> bins[4];
+    for (const auto& p : pts) {
+        bins[quadrantIndex(p, xm, ym)].push_back(p);
+    }
+    for (int i = 0; i < 4; ++i) {
+        auto b = childBounds(i, x0, y0, w, h);
+        node.children.emplace_back(b[0], b[1], b[2], b[3], bins[i]);
     }
 
-    int count = pixels.rows * pixels.cols;
-    r_mse /= count;
-    g_mse /= count;
-    b_mse /= count;
-
-    float error = r_mse * 0.2989 + g_mse * 0.5870 + b_mse * 0.1140;
-
-    return error * img.rows * img.cols / 90000000.0;
-}
-
-void QTree::subdivide()
-{
-    recursive_subdivide(root_, threshold_, min_pixel_size_, img_);
-    all_children_ = find_children(root_);
-}
-
-
-void QTree::renderImg(int thickness, cv::Scalar color)
-{
-    cv::Mat imgc;
-    cv::cvtColor(img_, imgc, cv::COLOR_RGB2BGR);
-    cv::imshow("before", imgc);
-
-    std::vector<Node> children = find_children(root_);
-    std::cout << "Find " << children.size() << " nodes" << std::endl;
-
-    for (const auto& child : children) {
-        cv::Mat pixels = child.getPixels(img_);
-
-        cv::Scalar avg_color = cv::mean(pixels);
-        int avg_b = static_cast<int>(std::floor(avg_color[0]));
-        int avg_g = static_cast<int>(std::floor(avg_color[1]));
-        int avg_r = static_cast<int>(std::floor(avg_color[2]));
-
-        imgc(cv::Rect(child.getOriginX(), child.getOriginY(), child.getWidth(), child.getHeight())).setTo(cv::Scalar(avg_r, avg_g, avg_b));
-        if (thickness > 0) {
-            cv::rectangle(imgc, cv::Point(child.getOriginX(), child.getOriginY()), cv::Point(child.getOriginX() + child.getWidth(), child.getOriginY() + child.getHeight()), color, thickness);
+    // Make sure keypoints are marked in children!
+    for (auto& child : node.children) {
+        const auto& pts = child.getPoints();
+        if (pts.size() == 1) {
+            child.has_keypoint_ = true;
+            child.setNodeKeypoint(std::get<0>(pts[0]));
+            child.setNodeMappoint(std::get<1>(pts[0]));
         }
     }
+}
 
-    cv::imshow("after", imgc);
+void QTree::renderImg(cv::Mat& image, int thickness, cv::Scalar color) {
+    if (all_leaves_ptrs_.empty()) subdivide();
+    for (Node* leaf : all_leaves_ptrs_) {
+        int x = leaf->getOriginX();
+        int y = leaf->getOriginY();
+        int w = leaf->getWidth();
+        int h = leaf->getHeight();
+        cv::rectangle(image,
+                        cv::Point(x, y),
+                        cv::Point(x + w, y + h),
+                        color, thickness);
+    }
+}
+
+void QTree::visualize(const cv::Mat& image, int thickness, cv::Scalar color) {
+    cv::Mat before = (image.channels() == 1 ? cv::Mat() : cv::Mat());
+    if (image.channels() == 1)
+        cv::cvtColor(image, before, cv::COLOR_GRAY2BGR);
+    else
+        before = image.clone();
+
+    for (const auto& p : root_.getPoints()) {
+        Eigen::Vector2f p_2d = std::get<0>(p); // indices 0,1
+        cv::circle(before,
+                    cv::Point2f(p_2d.x(), p_2d.y()),
+                    thickness + 2,
+                    cv::Scalar(0, 0, 255),
+                    cv::FILLED);
+    }
+
+    cv::imshow("Quadtree Before", before);
+
+    cv::Mat over = (image.channels() == 1 ? cv::Mat() : cv::Mat());
+    if (image.channels() == 1)
+        cv::cvtColor(image, over, cv::COLOR_GRAY2BGR);
+    else
+        over = image.clone();
+
+    renderImg(over, thickness, color);
+    cv::imshow("Quadtree After", over);
     cv::waitKey(0);
 }
 
-void recursive_subdivide(Node& node, float threshold, int min_pixel_size, cv::Mat& img)
-{
-    if (node.computeError(img) <= threshold) {
-        return;
-    }
-
-    int w1 = static_cast<int>(std::floor(node.getWidth() / 2.0));
-    int w2 = static_cast<int>(std::ceil(node.getWidth() / 2.0));
-    int h1 = static_cast<int>(std::floor(node.getHeight() / 2.0));
-    int h2 = static_cast<int>(std::ceil(node.getHeight() / 2.0));
-
-    if (w1 <= min_pixel_size || h1 <= min_pixel_size) {
-        return;
-    }
-
-    // top left
-    Node n1(node.getOriginX(), node.getOriginY(), w1, h1);
-    recursive_subdivide(n1, threshold, min_pixel_size, img);
-    // bottom left
-    Node n2(node.getOriginX(), node.getOriginY() + h1, w1, h2);
-    recursive_subdivide(n2, threshold, min_pixel_size, img);
-    // top right
-    Node n3(node.getOriginX() + w1, node.getOriginY(), w2, h1);
-    recursive_subdivide(n3, threshold, min_pixel_size, img);
-    // bottom right
-    Node n4(node.getOriginX() + w1, node.getOriginY() + h1, w2, h2);
-    recursive_subdivide(n4, threshold, min_pixel_size, img);
-
-    std::vector<Node> children{n1, n2, n3, n4};
-    node.children = children;
+inline int QTree::quadrantIndex(const std::tuple<Eigen::Vector2f, Eigen::Vector3f>& p, 
+                                int xm, int ym) {
+    Eigen::Vector2f p_2f = std::get<0>(p);
+    return (p_2f.x() >= xm ? 1 : 0) + (p_2f.y() >= ym ? 2 : 0);
 }
 
-std::vector<Node> find_children(const Node& node)
-{
-    if (node.children.empty()) {
-        return {node};
+inline std::array<int,4> QTree::childBounds(int idx, int x0, int y0, int w, int h) {
+    int w1 = w/2, h1 = h/2;
+    switch (idx) {
+        case 0: return {x0, y0, w1, h1};
+        case 1: return {x0 + w1, y0, w - w1, h1};
+        case 2: return {x0, y0 + h1, w1, h - h1};
+        case 3: return {x0 + w1, y0 + h1, w - w1, h - h1};
     }
-    else {
-        std::vector<Node> all_children;
-        for (const auto& child : node.children) {
-            auto grandchildren = find_children(child);
-            all_children.insert(all_children.end(), grandchildren.begin(), grandchildren.end());
+    return {0,0,0,0};
+}
+
+void QTree::recursive_subdivide(Node& node) {
+    const auto& pts = node.getPoints();
+    if (pts.size() <= 1 ||
+        node.getWidth() <= min_pixel_size_ ||
+        node.getHeight() <= min_pixel_size_) {
+        all_leaves_ptrs_.push_back(&node);
+        if (pts.size() == 1) {
+            node.has_keypoint_ = true;
+            node.setNodeKeypoint(std::get<0>(pts[0])); // set Vector2f
+            node.setNodeMappoint(std::get<1>(pts[0])); // set Vector3f
         }
-        return all_children;
+        return;
     }
+
+    int x0 = node.getOriginX(), y0 = node.getOriginY();
+    int w = node.getWidth(), h = node.getHeight();
+    int xm = x0 + w/2, ym = y0 + h/2;
+
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> bins[4];
+    for (const auto& p : pts) {
+        bins[quadrantIndex(p, xm, ym)].push_back(p);
+    }
+
+    for (int i = 0; i < 4; ++i) {
+        auto b = childBounds(i, x0, y0, w, h);
+        node.children.emplace_back(b[0], b[1], b[2], b[3], bins[i]);
+    }
+
+    for (auto& c : node.children)
+        recursive_subdivide(c);
 }
 
 } // namespace gs
