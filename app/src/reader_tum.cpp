@@ -481,13 +481,19 @@ std::string se::TUMReader::name() const
 }
 
 
-se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image)
+se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image, std::string* depth_image_name)
 {
     if (frame_ >= num_frames_) {
         return se::ReaderStatus::error;
     }
     const std::string filename = sequence_path_ + "/" + depth_filenames_[frame_];
 
+    if (depth_image_name) {
+        *depth_image_name =
+          std::filesystem::path(filename)
+            .filename()
+            .string();
+      }
     // Read the image data.
     cv::Mat image_data = cv::imread(filename.c_str(), cv::IMREAD_UNCHANGED);
     cv::Mat depth_data;
@@ -497,23 +503,23 @@ se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image)
         return se::ReaderStatus::error;
     }
 
-    // debug log for depth data
-    std::ofstream log_file;
-    log_file.open("/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_desk2/tmp/depth_data_usedby_original_GSFusion.txt", std::ios::app);
-    log_file << "=== Timestamp (ns): unknown" << " ===\n";
-    for (int i = 0; i < depth_data.rows; ++i) {
-        for (int j = 0; j < depth_data.cols; ++j) {
-            float depth = depth_data.at<float>(i, j);  // assuming depth_msg is CV_32F (meters)
-            if (std::isfinite(depth)) {
-                log_file << std::fixed << std::setprecision(3) << depth;
-            } else {
-                log_file << "nan";  // or 0 or -1
-            }
-            if (j < depth_data.cols - 1) log_file << " ";
-        }
-        log_file << "\n";
-    }
-    log_file.close();
+    // // debug log for depth data
+    // std::ofstream log_file;
+    // log_file.open("/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_desk2/tmp/depth_data_usedby_original_GSFusion.txt", std::ios::app);
+    // log_file << "=== Timestamp (ns): unknown" << " ===\n";
+    // for (int i = 0; i < depth_data.rows; ++i) {
+    //     for (int j = 0; j < depth_data.cols; ++j) {
+    //         float depth = depth_data.at<float>(i, j);  // assuming depth_msg is CV_32F (meters)
+    //         if (std::isfinite(depth)) {
+    //             log_file << std::fixed << std::setprecision(3) << depth;
+    //         } else {
+    //             log_file << "nan";  // or 0 or -1
+    //         }
+    //         if (j < depth_data.cols - 1) log_file << " ";
+    //     }
+    //     log_file << "\n";
+    // }
+    // log_file.close();
 
     assert(depth_image_res_.x() == static_cast<int>(image_data.cols));
     assert(depth_image_res_.y() == static_cast<int>(image_data.rows));
@@ -528,15 +534,22 @@ se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image)
 }
 
 
-se::ReaderStatus se::TUMReader::nextColour(se::Image<rgb_t>& colour_image)
+se::ReaderStatus se::TUMReader::nextColour(se::Image<rgb_t>& colour_image, std::string* colour_image_name)
 {
     if (frame_ >= num_frames_) {
         return se::ReaderStatus::error;
     }
     if (rgb_filenames_.empty()) {
-        return se::Reader::nextColour(colour_image);
+        return se::Reader::nextColour(colour_image, colour_image_name);
     }
     const std::string filename = sequence_path_ + "/" + rgb_filenames_[frame_];
+
+    if (colour_image_name) {
+        *colour_image_name =
+          std::filesystem::path(filename)
+            .filename()
+            .string();
+      }
 
     cv::Mat image_data = cv::imread(filename.c_str(), cv::IMREAD_COLOR);
 

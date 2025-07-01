@@ -66,16 +66,37 @@ float computeSSIM_color(const cv::Mat& img1, const cv::Mat& img2) {
 }
 
 // img1, img2: CV_32FC3, 0~1
-float computeLPIPS(const cv::Mat& img1, const cv::Mat& img2, torch::jit::script::Module& lpips) {
-    torch::Tensor input1 = torch::from_blob(img1.data, {1, img1.rows, img1.cols, 3}, torch::kFloat32).permute({0, 3, 1, 2}).clone();
-    torch::Tensor input2 = torch::from_blob(img2.data, {1, img2.rows, img2.cols, 3}, torch::kFloat32).permute({0, 3, 1, 2}).clone();
+float computeLPIPS(const cv::Mat& img1,
+    const cv::Mat& img2,
+    torch::jit::script::Module& lpips) {
+    // build CPU tensor from OpenCV
+    auto input1 = torch::from_blob(img1.data,
+                        {1, img1.rows, img1.cols, 3},
+                        torch::kFloat32)
+        .permute({0, 3, 1, 2})
+        .clone()
+        // move to GPU
+        .to(torch::kCUDA);
+    auto input2 = torch::from_blob(img2.data,
+                        {1, img2.rows, img2.cols, 3},
+                        torch::kFloat32)
+        .permute({0, 3, 1, 2})
+        .clone()
+        // move to GPU
+        .to(torch::kCUDA);
 
-    input1 = input1 * 2 - 1;
-    input2 = input2 * 2 - 1;
-    std::vector<torch::jit::IValue> inputs{input1, input2};
-    auto out = lpips.forward(inputs).toTensor();
+    // normalize into [-1,1]
+    input1 = input1 * 2.0 - 1.0;
+    input2 = input2 * 2.0 - 1.0;
+
+    // forward on GPU
+    auto out = lpips.forward({input1, input2}).toTensor();
+
+    // bring result back to CPU for .item<float>() (optional: .item runs on CPU)
+    out = out.to(torch::kCPU);
     return out.item<float>();
 }
+
 
 int main(int argc, char** argv) {
     

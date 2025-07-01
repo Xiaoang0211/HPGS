@@ -135,6 +135,23 @@ int main(int argc, char** argv)
         // ========= Integrator INITIALIZATION  =========
         int frame = 0;
         float mean_fps = 0.0f;
+        std::vector<std::string> depth_img_name_list;
+        std::vector<std::string> colour_img_name_list;
+        std::string depth_image_name;
+        std::string colour_image_name;
+
+        const std::string rendered_dir = config.reader.sequence_path + "/rendered_color";
+        if (!stdfs::create_directories(rendered_dir)) {
+            std::cerr << "Warning: could not create (or already existed) directory " 
+                    << rendered_dir << std::endl;
+        }
+
+        const std::string rendered_depth_dir = config.reader.sequence_path + "/rendered_depth";
+        if (!stdfs::create_directories(rendered_depth_dir)) {
+            std::cerr << "Warning: could not create (or already existed) directory " 
+                    << rendered_depth_dir << std::endl;
+        }
+
         while (frame != config.app.max_frames) {
             se::perfstats.setIter(frame++);
 
@@ -142,16 +159,22 @@ int main(int argc, char** argv)
             TICK("read")
             se::ReaderStatus read_ok = se::ReaderStatus::ok;
             if (config.app.enable_ground_truth || frame == 1) {
-                read_ok = reader->nextData(input_depth_img, input_colour_img, T_WB);
+                read_ok = reader->nextData(input_depth_img, &depth_image_name,
+                                           input_colour_img, &colour_image_name,
+                                           T_WB);
                 T_WS = T_WB * T_BS;
             }
             else {
-                read_ok = reader->nextData(input_depth_img, input_colour_img);
+                read_ok = reader->nextData(input_depth_img, &depth_image_name,
+                                           input_colour_img, &colour_image_name);
             }
             if (read_ok != se::ReaderStatus::ok) {
                 break;
             }
             TOCK("read")
+
+            depth_img_name_list.push_back(depth_image_name);
+            colour_img_name_list.push_back(colour_image_name);
 
             TICK("integration")
             double s = PerfStats::getTime();
@@ -159,7 +182,7 @@ int main(int argc, char** argv)
                 se::integrator::integrate(map, gs_model, gs_cam_list, gt_img_list, 
                                           gt_depth_list, 
                                           data_queue, 
-                                          input_depth_img, input_colour_img, 
+                                          input_depth_img, input_colour_img,
                                           sensor, T_WS, frame);
             }
             double e = PerfStats::getTime();
@@ -186,22 +209,63 @@ int main(int argc, char** argv)
                     std::vector<int> indices = gs::get_random_indices(gt_img_list.size());
                     for (int i = 0; i < indices.size(); i++) {
                         auto cur_gt_img = gt_img_list[indices[i]];
+                        auto gt_img_name = colour_img_name_list[indices[i]];
+
                         auto cur_gt_depth = gt_depth_list[indices[i]];
+                        auto gt_depth_name = depth_img_name_list[indices[i]];
+
                         auto cur_gs_cam = gs_cam_list[indices[i]];
 
                         auto [image, 
                               depth_img,
                               viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam, gs_model);
+                        
+                        // save the rendered image
+                        auto rendered_img_tensor = image.detach().permute({1, 2, 0}).contiguous().to(torch::kCPU);
+                        rendered_img_tensor = rendered_img_tensor.mul(255).clamp(0, 255).to(torch::kU8);
+                        auto cv_rendered_img = cv::Mat(image.size(1), image.size(2), CV_8UC3, rendered_img_tensor.data_ptr());
 
-                        auto valid_mask = (cur_gt_depth > 0); 
-                        auto diff = (depth_img - cur_gt_depth).abs();
-                        auto weighted_diff = diff * valid_mask;
-                        auto depth_loss = weighted_diff.sum() / valid_mask.sum();
+                        cv::Mat rendered_bgr;
+                        cv::cvtColor(cv_rendered_img, rendered_bgr, cv::COLOR_RGB2BGR);
+
+                        std::string color_image_file = rendered_dir + "/" + gt_img_name;
+                        if (!cv::imwrite(color_image_file, rendered_bgr)) {
+                            std::cerr << "Failed to save rendered color image to " 
+                                    << color_image_file << std::endl;
+                        }
+
+                        // ----- save depth -----
+                        // first normalize & colormap the single‐channel depth_img
+                        const float min_d = 0.4f, max_d = 6.0f;
+                        auto dep_t = depth_img.detach()
+                                        .permute({1,2,0})
+                                        .contiguous()
+                                        .to(torch::kCPU); // still float
+                        // assume depth tensor is [H,W,1], so squeeze
+                        dep_t = dep_t.squeeze();
+                        // convert to uchar with range [0,255]
+                        cv::Mat dep_f(image.size(1), image.size(2), CV_32FC1, dep_t.data_ptr());
+                        cv::Mat dep_u8;
+                        dep_f.convertTo(dep_u8, CV_8UC1,
+                                        255.0f / (max_d - min_d),
+                                        -255.0f * min_d / (max_d - min_d));
+                        cv::applyColorMap(dep_u8, dep_u8, cv::COLORMAP_VIRIDIS);
+                        cv::cvtColor(dep_u8, dep_u8, cv::COLOR_BGR2RGB);
+
+                        const std::string out_depth_fn = rendered_depth_dir + "/" + gt_depth_name;
+                        if (!cv::imwrite(out_depth_fn, dep_u8)) {
+                            std::cerr << "Failed to save depth image to " << out_depth_fn << "\n";
+                        }
+
+                        // auto valid_mask = (cur_gt_depth > 0); 
+                        // auto diff = (depth_img - cur_gt_depth).abs();
+                        // auto weighted_diff = diff * valid_mask;
+                        // auto depth_loss = weighted_diff.sum() / valid_mask.sum();
                 
                         // Loss Computations
                         auto l1_loss = gs::l1_loss(image, cur_gt_img);
                         auto ssim_loss = gs::ssim(image, cur_gt_img, gs::conv_window, gs::window_size, gs::channel);
-                        auto loss = (1.f - lambda) * l1_loss + lambda * (1.f - ssim_loss) + (1.f - lambda) * 0.5 * depth_loss;
+                        auto loss = (1.f - lambda) * l1_loss + lambda * (1.f - ssim_loss); // + (1.f - lambda) * 0.5 * depth_loss;
 
                         // Optimization
                         loss.backward();

@@ -49,9 +49,11 @@ class ScanNetppReader : public Reader {
 
     std::vector<std::string> rgb_filenames_;
 
-    ReaderStatus nextDepth(Image<float>& depth_image);
+    ReaderStatus nextDepth(Image<float>& depth_image, 
+                           std::string* depth_image_name = nullptr ) override;
 
-    ReaderStatus nextColour(Image<rgb_t>& colour_image);
+    ReaderStatus nextColour(Image<rgb_t>& colour_image, 
+                            std::string* colour_image_name = nullptr ) override;
 };
 
 } // namespace se

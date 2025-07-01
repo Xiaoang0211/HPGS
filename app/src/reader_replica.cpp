@@ -268,7 +268,7 @@ std::string se::ReplicaReader::name() const
 }
 
 
-se::ReaderStatus se::ReplicaReader::nextDepth(se::Image<float>& depth_image)
+se::ReaderStatus se::ReplicaReader::nextDepth(se::Image<float>& depth_image, std::string* depth_image_name)
 {
     if (frame_ >= num_frames_) {
         return se::ReaderStatus::error;
@@ -297,7 +297,7 @@ se::ReaderStatus se::ReplicaReader::nextDepth(se::Image<float>& depth_image)
 }
 
 
-se::ReaderStatus se::ReplicaReader::nextColour(se::Image<rgb_t>& colour_image)
+se::ReaderStatus se::ReplicaReader::nextColour(se::Image<rgb_t>& colour_image, std::string* colour_image_name)
 {
     if (frame_ >= num_frames_ || rgb_filenames_.empty()) {
         return se::ReaderStatus::error;

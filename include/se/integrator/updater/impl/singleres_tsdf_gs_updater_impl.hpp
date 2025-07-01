@@ -371,13 +371,13 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
               depth_img, 
               viewspace_point_tensor, visibility_filter, radii, err] = gs::render(cur_gs_cam_, gs_model_);
         
-        auto valid_mask = (cur_gt_depth_ > 0); 
-        auto diff = (depth_img - cur_gt_depth_).abs();
-        auto weighted_diff = diff * valid_mask;
-        auto depth_loss = weighted_diff.sum() / valid_mask.sum();
+        // auto valid_mask = (cur_gt_depth_ > 0); 
+        // auto diff = (depth_img - cur_gt_depth_).abs();
+        // auto weighted_diff = diff * valid_mask;
+        // auto depth_loss = weighted_diff.sum() / valid_mask.sum();
 
         // Loss Computations
-        auto loss = 0.5 * gs::l1_loss(image, cur_gt_img_) + depth_loss;
+        auto loss = gs::l1_loss(image, cur_gt_img_); // + depth_loss;
 
         // Optimization
         loss.backward();
