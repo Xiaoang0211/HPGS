@@ -7,6 +7,8 @@
 *.png
 *.sqlite
 *.nsys-rep
+*.py
+*.pt
 build/
 cmake-build-debug/
 cmake-build-release/
