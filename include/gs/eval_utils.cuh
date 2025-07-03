@@ -115,12 +115,6 @@ static inline float computeLPIPS(const cv::Mat& I1, const cv::Mat& I2, torch::ji
 void loadLpipsModel(const std::string& model_path, torch::jit::script::Module& lpips)
 {
     try {
-        std::cout << "Attempting to load LPIPS from: '" << model_path << "'" << std::endl;
-        if (!std::filesystem::exists(model_path)) {
-            std::cerr << "Model file not found at: " << model_path << std::endl;
-            throw std::runtime_error("LPIPS model file not found");
-        }
-        lpips = torch::jit::load(model_path);
         // Load the LPIPS model
         lpips = torch::jit::load(model_path);
         lpips.to(torch::kCUDA); // Move the model to GPU
