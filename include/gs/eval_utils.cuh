@@ -14,31 +14,6 @@ namespace gs::eval {
  */
 static inline float computePSNR(const cv::Mat& I1, const cv::Mat& I2)
 {   
-    // std::cout << "Computing PSNR..." << std::endl;
-    // // Debug: Check image properties
-    // std::cout << "I1 - Size: " << I1.size() << ", Channels: " << I1.channels() 
-    //     << ", Type: " << I1.type() << ", Depth: " << I1.depth() << std::endl;
-    // std::cout << "I2 - Size: " << I2.size() << ", Channels: " << I2.channels() 
-    //     << ", Type: " << I2.type() << ", Depth: " << I2.depth() << std::endl;
-
-    // // Check if images are empty
-    // if (I1.empty() || I2.empty()) {
-    //     std::cerr << "One or both images are empty!" << std::endl;
-    //     return -1;
-    // }
-
-    // // Check if sizes match
-    // if (I1.size() != I2.size()) {
-    //     std::cerr << "Image sizes don't match!" << std::endl;
-    //     return -1;
-    // }
-
-    // // Check if channel counts match
-    // if (I1.channels() != I2.channels()) {
-    //     std::cerr << "Channel counts don't match!" << std::endl;
-    //     return -1;
-    // }
-
     cv::Mat s1;
     absdiff(I1, I2, s1);    // |I1 - I2|
     s1.convertTo(s1, CV_32F);
@@ -61,7 +36,6 @@ static inline float computePSNR(const cv::Mat& I1, const cv::Mat& I2)
  */ 
 static inline float computeSSIM(const cv::Mat& i1, const cv::Mat& i2)
 {   
-    // std::cout << "Computing SSIM..." << std::endl;
     cv::Mat I1, I2;
     i1.convertTo(I1, CV_32F);
     i2.convertTo(I2, CV_32F);
@@ -93,23 +67,6 @@ static inline float computeSSIM(const cv::Mat& i1, const cv::Mat& i2)
     divide(t3, t1, ssim_map);
     return mean(ssim_map)[0];
 }
-
-// /**
-//  * Compute the SSIM for color images by averaging the SSIM values of each channel.
-//  *
-//  * \param img1 First color image.
-//  * \param img2 Second color image.
-//  * \return The average SSIM value across all channels.
-//  */
-// static inline float computeSSIM_color(const cv::Mat& img1, const cv::Mat& img2) {
-//     std::vector<cv::Mat> channels1, channels2;
-//     cv::split(img1, channels1);
-//     cv::split(img2, channels2);
-//     float ssim = 0.0;
-//     for (int i = 0; i < 3; ++i)
-//         ssim += computeSSIM(channels1[i], channels2[i]);
-//     return ssim / 3.0;
-// }
 
 /**
  * Compute the Learned Perceptual Image Patch Similarity (LPIPS) between two images.

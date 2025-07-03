@@ -437,31 +437,44 @@ int main(int argc, char** argv)
             if (!eval_fs.good()) {
                 std::cerr << "Failed to open evaluation results file for writing!" << std::endl;
             }
-            eval_fs << "Training views evaluation metrics:\n";
-            eval_fs << "PSNR: " << mean(psnr_training) << "\n";
-            eval_fs << "SSIM: " << mean(ssim_training) << "\n";
-            eval_fs << "LPIPS: " << mean(lpips_training) << "\n";
-            eval_fs << "Novel views evaluation metrics:\n";
-            eval_fs << "PSNR: " << mean(psnr_novel) << "\n";
-            eval_fs << "SSIM: " << mean(ssim_novel) << "\n";
-            eval_fs << "LPIPS: " << mean(lpips_novel) << "\n";
+
+            // Always write training views (assuming they exist)
+            if (!psnr_training.empty()) {
+                eval_fs << "Training views evaluation metrics:\n";
+                eval_fs << "PSNR: " << mean(psnr_training) << "\n";
+                eval_fs << "SSIM: " << mean(ssim_training) << "\n";
+                eval_fs << "LPIPS: " << mean(lpips_training) << "\n";
+                
+                std::cout << "============= Evaluation Results =============\n";
+                std::cout << "Training views:\n";
+                std::cout << "PSNR: " << mean(psnr_training) << "\n";
+                std::cout << "SSIM: " << mean(ssim_training) << "\n";
+                std::cout << "LPIPS: " << mean(lpips_training) << "\n";
+            }
+
+            // Only write novel views if they exist
+            if (!psnr_novel.empty()) {
+                eval_fs << "Novel views evaluation metrics:\n";
+                eval_fs << "PSNR: " << mean(psnr_novel) << "\n";
+                eval_fs << "SSIM: " << mean(ssim_novel) << "\n";
+                eval_fs << "LPIPS: " << mean(lpips_novel) << "\n";
+                
+                std::cout << "Novel views:\n";
+                std::cout << "PSNR: " << mean(psnr_novel) << "\n";
+                std::cout << "SSIM: " << mean(ssim_novel) << "\n";
+                std::cout << "LPIPS: " << mean(lpips_novel) << "\n";
+            } else {
+                eval_fs << "No novel views found for evaluation.\n";
+                std::cout << "No novel views found for evaluation.\n";
+            }
+
+            if (!psnr_training.empty() || !psnr_novel.empty()) {
+                std::cout << "==============================================\n";
+            }
+
             eval_fs.close();
-
-            std::cout << "Evaluation results saved to " << eval_file << "\n";
-
-            std::cout << "============= Evaluation Results =============\n";
-            std::cout << "Training views:\n";
-            std::cout << "PSNR: " << mean(psnr_training) << "\n";
-            std::cout << "SSIM: " << mean(ssim_training) << "\n";
-            std::cout << "LPIPS: " << mean(lpips_training) << "\n";
-            std::cout << "Novel views:\n";
-            std::cout << "PSNR: " << mean(psnr_novel) << "\n";
-            std::cout << "SSIM: " << mean(ssim_novel) << "\n";
-            std::cout << "LPIPS: " << mean(lpips_novel) << "\n";
-            std::cout << "==============================================\n";    
+            std::cout << "Evaluation results saved to " << eval_file << "\n"; 
         }
-
-
         // stop_signal.store(true);
         // gui_thread.join();
         return 0;

@@ -43,5 +43,5 @@ app:
   meshing_rate:               0
   max_frames:                 613
   log_file:                   "/tmp/log.tsv"
-  stride:                     2
+  stride:                     1
   eval:                       true
