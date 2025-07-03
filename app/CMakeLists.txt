@@ -66,14 +66,6 @@ endif()
 # Allow handling large files in 32-bit systems
 target_compile_definitions(${EXE_NAME} PRIVATE _FILE_OFFSET_BITS=64)
 
-# Adding evaluation executable for assessing the rendering quality
-add_executable(render_eval src/eval.cpp)
-target_link_libraries(render_eval
-    PRIVATE
-        ${OpenCV_LIBS}
-        ${TORCH_LIBRARIES}
-)
-
 # Compile with GUI support
 if(GLUT_FOUND)
   target_link_libraries(${EXE_NAME}

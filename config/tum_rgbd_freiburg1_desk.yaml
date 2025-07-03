@@ -24,8 +24,8 @@ sensor:
 
 reader:
   reader_type:                "tum"
-  sequence_path:              "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_xyz"
-  ground_truth_file:          "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_xyz/groundtruth.txt"
+  sequence_path:              "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_desk"
+  ground_truth_file:          "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_desk/groundtruth.txt"
   lpips_model_path:           "/home/xiaoang/repo_cvsl/HPGS/lpips_vgg.pt"
   fps:                        0.0
   drop_frames:                false
@@ -34,14 +34,14 @@ reader:
 app:
   enable_ground_truth:        true
   optim_params_path:          "/home/xiaoang/MyLab/GSFusion/parameter/optimization_params_tum_rgbd.json"
-  ply_path:                   "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_xyz/point_cloud"
-  mesh_path:                  "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_xyz/mesh"
+  ply_path:                   "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_desk/point_cloud"
+  mesh_path:                  "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg1_desk/mesh"
   slice_path:                 ""
   structure_path:             ""
   integration_rate:           1
   rendering_rate:             1
   meshing_rate:               0
-  max_frames:                 798
+  max_frames:                 613
   log_file:                   "/tmp/log.tsv"
   stride:                     2
   eval:                       true

@@ -79,6 +79,10 @@ struct AppConfig {
      */
     std::string log_file;
 
+    int stride = 2;
+    
+    bool eval = false;
+
     /** Reads the struct members from the "app" node of a YAML file. Members not present in the
      * YAML file aren't modified.
      */

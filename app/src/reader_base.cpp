@@ -90,6 +90,7 @@ void se::ReaderConfig::readYaml(const std::string& filename)
     se::yaml::subnode_as_int(node, "verbose", verbose);
     se::yaml::subnode_as_string(node, "sequence_path", sequence_path);
     se::yaml::subnode_as_string(node, "ground_truth_file", ground_truth_file);
+    se::yaml::subnode_as_string(node, "lpips_model_path", lpips_model_path);
 
     // Expand ~ in the paths.
     sequence_path = se::str_utils::expand_user(sequence_path);
@@ -114,6 +115,7 @@ std::ostream& se::operator<<(std::ostream& os, const se::ReaderConfig& c)
     os << str_utils::str_to_pretty_str(se::reader_type_to_string(c.reader_type), "reader_type") << "\n";
     os << str_utils::str_to_pretty_str(c.sequence_path, "sequence_path") << "\n";
     os << str_utils::str_to_pretty_str(c.ground_truth_file, "ground_truth_file") << "\n";
+    os << str_utils::str_to_pretty_str(c.lpips_model_path, "lpips_model_path") << "\n";
     os << str_utils::value_to_pretty_str(c.fps, "fps") << "\n";
     os << str_utils::bool_to_pretty_str(c.drop_frames, "drop_frames") << "\n";
     os << str_utils::value_to_pretty_str(c.verbose, "verbose") << "\n";

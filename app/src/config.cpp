@@ -60,6 +60,8 @@ void AppConfig::readYaml(const std::string& filename)
     se::yaml::subnode_as_int(node, "meshing_rate", meshing_rate);
     se::yaml::subnode_as_int(node, "max_frames", max_frames);
     se::yaml::subnode_as_string(node, "log_file", log_file);
+    se::yaml::subnode_as_int(node, "stride", stride);
+    se::yaml::subnode_as_bool(node, "eval", eval);
 
     const stdfs::path dataset_dir = stdfs::path(filename).parent_path();
     optim_params_path = process_path(optim_params_path, dataset_dir);
@@ -82,6 +84,8 @@ std::ostream& operator<<(std::ostream& os, const AppConfig& c)
     os << str_utils::value_to_pretty_str(c.meshing_rate, "meshing_rate") << "\n";
     os << str_utils::value_to_pretty_str(c.max_frames, "max_frames") << "\n";
     os << str_utils::str_to_pretty_str(c.log_file, "log_file") << "\n";
+    os << str_utils::value_to_pretty_str(c.stride, "stride") << "\n";
+    os << str_utils::bool_to_pretty_str(c.eval, "eval") << "\n";
     return os;
 }
 } // namespace se

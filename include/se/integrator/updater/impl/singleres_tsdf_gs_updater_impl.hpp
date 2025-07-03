@@ -306,7 +306,7 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         gs_model_.Add_gaussians(positions, colors, scales);
     }
 
-    std::cout << "--- Number of new Gaussians: " << positions.size() << " ---\n";
+    // std::cout << "--- Number of new Gaussians: " << positions.size() << " ---\n";
 
     int iters = gs_model_.optimParams.kf_iters;
     if (!isKeyframe_) {

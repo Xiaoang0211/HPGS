@@ -26,6 +26,7 @@ reader:
   reader_type:                "tum"
   sequence_path:              "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg2_desk"
   ground_truth_file:          "/home/xiaoang/VISLAM_Datasets/tum_rgbd/rgbd_dataset_freiburg2_desk/groundtruth.txt"
+  lpips_model_path:           "/home/xiaoang/repo_cvsl/HPGS/lpips_vgg.pt"
   fps:                        0.0
   drop_frames:                false
   verbose:                    0
@@ -42,3 +43,5 @@ app:
   meshing_rate:               0
   max_frames:                 2964
   log_file:                   "/tmp/log.tsv"
+  stride:                     2
+  eval:                       true

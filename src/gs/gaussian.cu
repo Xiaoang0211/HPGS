@@ -212,6 +212,159 @@ void GaussianModel::Save_ply(const std::filesystem::path& file_path, int frame, 
     }
 }
 
+void GaussianModel::Load_ply(const std::filesystem::path& file_path)
+{
+    using namespace tinyply;
+
+    std::cout << "Loading PLY from: " << file_path.string() << "\n";
+    // --- 1) Open file ---
+    std::ifstream ss(file_path, std::ios::binary);
+    if (!ss.is_open())
+        throw std::runtime_error("Could not open PLY file: " + file_path.string());
+
+    // --- 2) Parse header & collect all "vertex" property names ---
+    PlyFile ply;
+    ply.parse_header(ss);
+
+    std::vector<std::string> attribs;
+    for (const auto &elem : ply.get_elements())
+    {
+        if (elem.name == "vertex")
+        {
+            for (const auto &prop : elem.properties)
+                attribs.push_back(prop.name);
+            break;
+        }
+    }
+    if (attribs.empty())
+        throw std::runtime_error("PLY contains no 'vertex' element!");
+
+    // --- 3) Request each property buffer ---
+    std::vector<std::shared_ptr<PlyData>> props_data;
+    props_data.reserve(attribs.size());
+    for (auto &name : attribs)
+        props_data.push_back(ply.request_properties_from_element("vertex", { name }));
+    // --- 4) Read body ---
+    ply.read(ss);
+    std::cout << "PLY file read successfully.\n";
+
+    // --- 5) Determine vertex count ---
+    const size_t N = props_data[0]->count;
+    if (N == 0)
+        throw std::runtime_error("PLY has zero vertices!");
+
+    // --- 6) Copy everything into a flat float array per property ---
+    std::vector<std::vector<float>> all_data(attribs.size(), std::vector<float>(N));
+    for (size_t k = 0; k < attribs.size(); ++k)
+    {
+        auto ptr = reinterpret_cast<const float*>(props_data[k]->buffer.get());
+        for (size_t i = 0; i < N; ++i)
+            all_data[k][i] = ptr[i];
+    }
+
+    // --- 7) Partition indices by name ---
+    int idx_x = -1, idx_y = -1, idx_z = -1;
+    std::vector<int> idx_dc, idx_rest, idx_scale, idx_rot;
+    int idx_opacity = -1;
+
+    for (size_t k = 0; k < attribs.size(); ++k)
+    {
+        const auto &n = attribs[k];
+        if      (n == "x")         idx_x = k;
+        else if (n == "y")         idx_y = k;
+        else if (n == "z")         idx_z = k;
+        else if (n.rfind("f_dc_",0)==0)   idx_dc.push_back(k);
+        else if (n.rfind("f_rest_",0)==0) idx_rest.push_back(k);
+        else if (n == "opacity")   idx_opacity = k;
+        else if (n.rfind("scale_",0)==0)  idx_scale.push_back(k);
+        else if (n.rfind("rot_",0)==0)    idx_rot.push_back(k);
+    }
+    if (idx_x<0 || idx_y<0 || idx_z<0 || idx_opacity<0)
+        throw std::runtime_error("PLY missing required x/y/z/opacity properties!");
+
+    // --- 8) Scatter into per‑attribute buffers ---
+    // Positions
+    std::vector<float> vx(N), vy(N), vz(N);
+    for (size_t i = 0; i < N; ++i)
+    {
+        vx[i] = all_data[idx_x][i];
+        vy[i] = all_data[idx_y][i];
+        vz[i] = all_data[idx_z][i];
+    }
+
+    // Helper to flatten a list of channels
+    auto flatten_channels = [&](const std::vector<int>& idx_list) {
+        const size_t C = idx_list.size();
+        std::vector<float> out(N * C);
+        for (size_t c = 0; c < C; ++c)
+            for (size_t i = 0; i < N; ++i)
+                out[c + i*C] = all_data[idx_list[c]][i];
+        return out;
+    };
+
+    auto f_dc_flat   = flatten_channels(idx_dc);
+    auto f_rest_flat = flatten_channels(idx_rest);
+
+    // opacity is single‑channel
+    std::vector<float> opacity_flat(all_data[idx_opacity]);
+
+    auto scale_flat = flatten_channels(idx_scale);
+    auto rot_flat   = flatten_channels(idx_rot);
+
+    // --- 9) Build torch tensors on CUDA ---
+    torch::TensorOptions F = torch::TensorOptions().dtype(torch::kFloat32);
+
+    _xyz = torch::stack({
+        torch::from_blob(vx.data(), {(long)N}, F),
+        torch::from_blob(vy.data(), {(long)N}, F),
+        torch::from_blob(vz.data(), {(long)N}, F)
+    }, /*dim=*/1)
+        .to(torch::kCUDA)
+        .set_requires_grad(true);
+
+    // [N × featDC] → [N × 1 × featDC] → [N × featDC × 1] (match your prior layout)
+    const long featDC   = idx_dc.size();
+    _features_dc = torch::from_blob(f_dc_flat.data(), {(long)N, featDC}, F)
+                       .view({(long)N, 1, featDC})
+                       .transpose(1,2)
+                       .contiguous()
+                       .to(torch::kCUDA)
+                       .set_requires_grad(true);
+
+    const long featRest = idx_rest.size();
+    _features_rest = torch::from_blob(f_rest_flat.data(), {(long)N, featRest}, F)
+                         .view({(long)N, 1, featRest})
+                         .transpose(1,2)
+                         .contiguous()
+                         .to(torch::kCUDA)
+                         .set_requires_grad(true);
+
+    _opacity = torch::from_blob(opacity_flat.data(), {(long)N, 1}, F)
+                   .to(torch::kCUDA)
+                   .set_requires_grad(true);
+
+    _scaling = torch::from_blob(scale_flat.data(), {(long)N, (long)idx_scale.size()}, F)
+                     .to(torch::kCUDA)
+                     .set_requires_grad(true);
+
+    _rotation = torch::from_blob(rot_flat.data(), {(long)N, (long)idx_rot.size()}, F)
+                      .to(torch::kCUDA)
+                      .set_requires_grad(true);
+
+    // initialize densification‐aux var e
+    _e = torch::zeros({(long)N, 1}, F)
+                .to(torch::kCUDA)
+                .set_requires_grad(true);
+
+    // --- 10) Rebuild optimizer around the newly loaded tensors ---
+    training_setup();
+
+    std::cout << "Loaded PLY with " << N << " vertices, "
+              << featDC << " f_dc, "
+              << featRest << " f_rest channels.\n";
+}
+
+
 
 void cat_tensors_to_optimizer(torch::optim::Adam* optimizer, torch::Tensor& extension_tensor, torch::Tensor& old_tensor, int param_position)
 {

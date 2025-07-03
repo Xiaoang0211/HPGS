@@ -88,6 +88,7 @@ class GaussianModel {
     // Methods
     void Add_gaussians(std::vector<Point>& positions, std::vector<Color>& colors, std::vector<float>& scales);
     void Save_ply(const std::filesystem::path& file_path, int iteration, bool isLastIteration);
+    void Load_ply(const std::filesystem::path& file_path);
 
     std::unique_ptr<torch::optim::Adam> optimizer;
     param::OptimizationParameters optimParams;

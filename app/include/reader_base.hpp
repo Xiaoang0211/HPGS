@@ -53,6 +53,11 @@ struct ReaderConfig {
      */
     std::string ground_truth_file;
 
+    /** The path to the LPIPS model file.
+     * This is used for evaluating the quality of the rendered images.
+     */
+    std::string lpips_model_path;
+
     /** The scaling factor to convert depth values to metres. A value of 0 will use the default
      * scaling for the particular dataset. This only needs to be set when using a modified dataset,
      * e.g. when using a dataset in the TUM format with depth scaled by 1000 instead of the default
