@@ -489,11 +489,10 @@ se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image, std::st
     const std::string filename = sequence_path_ + "/" + depth_filenames_[frame_];
 
     if (depth_image_name) {
-        *depth_image_name =
-          std::filesystem::path(filename)
-            .filename()
-            .string();
-      }
+        *depth_image_name = std::filesystem::path(filename)
+                            .filename()
+                            .string();
+    }
     // Read the image data.
     cv::Mat image_data = cv::imread(filename.c_str(), cv::IMREAD_UNCHANGED);
     cv::Mat depth_data;
