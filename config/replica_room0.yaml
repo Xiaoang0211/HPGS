@@ -26,6 +26,7 @@ reader:
   reader_type:                "replica"
   sequence_path:              "/home/xiaoang/MyLab/replica_v1/room_0"
   ground_truth_file:          "/home/xiaoang/MyLab/replica_v1/room_0/traj_matrix.txt"
+  lpips_model_path:           "/home/xiaoang/MyLab/GSFusion/parameter/vgg16.pth"
   fps:                        0.0
   drop_frames:                false
   verbose:                    0

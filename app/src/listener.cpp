@@ -8,6 +8,7 @@
 */
 
 #include "listener.hpp"
+#include "gs/eval_utils.cuh"
 
 #define PBSTR "||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||"
 #define PBWIDTH 60
@@ -83,9 +84,6 @@ VSLAMListener::VSLAMListener(const std::string& node_name,
 VSLAMListener::~VSLAMListener()
 {
     Stop();
-    if (outFile_.is_open()) {
-        outFile_.close();
-    }
 }
 
 void VSLAMListener::initSync() {
@@ -114,15 +112,6 @@ void VSLAMListener::initSync() {
         rclcpp::SubscriptionOptions());
 
     RCLCPP_INFO(this->get_logger(), "Subscribed to depth topic: %s", depthImageTopic.c_str());
-    
-
-    // // Debug 打开文件输出流
-    // outFile_.open("/app/GSFusion_ROS2_ws/ROSdata_output.txt"); 
-
-    // // 检查是否成功打开
-    // if (!outFile_.is_open()) {
-    //     std::cerr << "Failed to open file for writing.\n";
-    // }
 
     msg_sync_ = std::make_shared<message_filters::Synchronizer<msgSyncPolicy>>(
                 msgSyncPolicy(10),        // queue size = 10
@@ -298,6 +287,13 @@ void VSLAMListener::msgCallbackTmp( const sensor_msgs::msg::PointCloud2::ConstSh
     fs::path rgb_image_path = rgb_image_base_ / odometry_msg->header.frame_id;
     fs::path depth_image_path = depth_image_base_ / odometry_gt_msg->header.frame_id;
 
+    // save training image to training_views_list.txt
+    if (training_views_list_.is_open()) {
+        training_views_list_ << odometry_msg->header.frame_id << std::endl;
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to open output file for writing.");
+    }
+
     cv::Mat bgr_image = cv::imread(rgb_image_path.string(), cv::IMREAD_COLOR);
     cv::Mat depth_image = cv::imread(depth_image_path.string(), cv::IMREAD_UNCHANGED);
 
@@ -379,6 +375,15 @@ void VSLAMListener::msgCallback(const sensor_msgs::msg::Image::ConstSharedPtr& r
         return;
     }
 
+    // Get the image frame_id from the header
+    std::string frame_id = rgb_image_msg->header.frame_id;
+    // append the frame id to training_views_list.txt
+    if (training_views_list_.is_open()) {
+        training_views_list_ << frame_id << std::endl;
+    } else {
+        RCLCPP_ERROR(this->get_logger(), "Failed to open output file for writing.");
+    }
+
     // Setup input images, assuming depth and color image resolutions have the same size and have been aligned.
     Eigen::Vector2i input_img_res(rgb_ptr->image.cols, rgb_ptr->image.rows);
     se::Image<float> input_depth_img(input_img_res.x(), input_img_res.y());
@@ -387,36 +392,6 @@ void VSLAMListener::msgCallback(const sensor_msgs::msg::Image::ConstSharedPtr& r
     // Setup input keypoints
     std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> keypoints;
     this->pointcloud2_to_eigen(keypoints_msg, keypoints);
-
-    // // debug 写到本地文件来看 同步情况
-    // // 1. rgb name 
-    // // 2. depth name
-    // // 3. GT pose
-    // std::string color_image_filename = rgb_image_msg->header.frame_id;
-    // std::string depth_image_filename = depth_image_msg->header.frame_id;
-    // auto gt_pose_t = odometry_gt_msg->pose.pose.position;
-    // auto gt_pose_q = odometry_gt_msg->pose.pose.orientation;
-
-    // outFile_ << color_image_filename << " " 
-    //         << depth_image_filename << " " 
-    //         << gt_pose_t.x << " " 
-    //         << gt_pose_t.y << " " 
-    //         << gt_pose_t.z << " " 
-    //         << gt_pose_q.x << " " 
-    //         << gt_pose_q.y << " " 
-    //         << gt_pose_q.z << " " 
-    //         << gt_pose_q.w << "\n ";  
-
-    // // Extract translation
-    // const auto& pos = msg->pose.pose.position;
-    // float x = pos.x;
-    // float y = pos.y;
-    // float z = pos.z;
-
-    // // Extract quaternion
-    // const auto& q = msg->pose.pose.orientation;
-    // Eigen::Quaternionf quat(q.w, q.x, q.y, q.z);
-    
 
     this->setDepthImage(input_depth_img, depth_ptr->image);
     this->setColourImage(input_colour_img, rgb_ptr->image);
@@ -500,7 +475,7 @@ int main(int argc, char** argv)
 
         const std::string ros2_config_filename = argv[2];
 
-         // Setup input images
+        // Setup input images
         const Eigen::Vector2i input_img_res(config.sensor.width, config.sensor.height);
 
         // ========= Map INITIALIZATION  =========
@@ -566,7 +541,9 @@ int main(int argc, char** argv)
                                                                    data_queue, 
                                                                    frame, 
                                                                    mean_fps);
-
+        // set the output path for the training views list
+        std::string training_views_list_path = config.reader.sequence_path + "/training_views_list.txt";
+        vslam_listener_node->set_training_views_list_path(training_views_list_path);
         vslam_listener_node->initSync(); // initialize the synchronized subscriptions involving image transport
         vslam_listener_node->Start(); // start the online gs mapping thread
 
@@ -582,7 +559,10 @@ int main(int argc, char** argv)
         if (vslam_listener_node->online_optimization_finished_) {
             // shut down ros2
             std::cout << "Shutting down ROS2 ...\n"; 
-            vslam_listener_node.reset();
+            vslam_listener_node->Stop(); // stop the online gs mapping thread
+            //stop writing to training_views_list.txt
+            vslam_listener_node->close_log_files();
+            // vslam_listener_node.reset();
             rclcpp::shutdown();
             std::cout << "Starting global optimization ...\n"; 
             double s = PerfStats::getTime();
@@ -651,6 +631,229 @@ int main(int argc, char** argv)
             gs_model->Save_ply(gs_model->output_path, *frame, true);
         }
 
+        // =========== Optional Evaluation ==============
+        if (config.app.eval) {
+            std::cout << "Starting evaluation ...\n";
+
+            // read in the training views list in a vector
+            std::ifstream training_views_file(config.reader.sequence_path + "/training_views_list.txt");
+            if (!training_views_file.is_open()) {
+                std::cerr << "Failed to open training views list file for reading." << std::endl;
+                return EXIT_FAILURE;
+            }   
+            std::vector<std::string> training_views_list;
+            std::string line;
+            while (std::getline(training_views_file, line)) {
+                training_views_list.push_back(line);
+            }
+            training_views_file.close();
+
+            // Initialize the lists for evaluation metrics
+            std::vector<float> psnr_training, ssim_training, lpips_training;
+            std::vector<float> psnr_novel, ssim_novel, lpips_novel;
+
+            // Create directory for rendered images
+            const std::string rendered_dir = config.reader.sequence_path + "/rendered_color_hpgs";
+            if (!stdfs::create_directories(rendered_dir)) {
+                std::cerr << "Warning: could not create (or already existed) directory " 
+                        << rendered_dir << std::endl;
+            }
+
+            // // Create directory for rendered depth images
+            // const std::string rendered_depth_dir = config.reader.sequence_path + "/rendered_depth_hpgs";
+            // if (!stdfs::create_directories(rendered_depth_dir)) {
+            //     std::cerr << "Warning: could not create (or already existed) directory " 
+            //             << rendered_depth_dir << std::endl;
+            // }
+
+            // Load the Lpips model for evaluation
+            // initialize the LPIPS model
+            torch::jit::script::Module lpips_model;
+            gs::eval::loadLpipsModel(config.reader.lpips_model_path, lpips_model);
+            
+            // reset reader and frame count
+            gs::Camera camera;
+            *frame = 0;
+            // ========= READER INITIALIZATION  =========
+            se::Reader* reader = nullptr;
+            reader = se::create_reader(config.reader);
+
+            if (reader == nullptr) {
+                return EXIT_FAILURE;
+            }
+
+            Eigen::Matrix4f T_WB = Eigen::Matrix4f::Identity();
+            Eigen::Matrix4f T_BS = sensor->T_BS;
+            Eigen::Matrix4f T_WS = T_WB * T_BS;
+
+            // Setup input images and their file names
+            se::Image<float> input_depth_img(input_img_res.x(), input_img_res.y());
+            se::Image<se::rgb_t> input_colour_img(input_img_res.x(), input_img_res.y(), {0, 0, 0});
+            std::string depth_image_name, colour_image_name;
+
+            while (*frame != config.app.max_frames) {
+                se::perfstats.setIter((*frame)++);
+                se::ReaderStatus read_ok = reader->nextData(input_depth_img, &depth_image_name,
+                                                            input_colour_img, &colour_image_name,
+                                                            T_WB);
+                if (read_ok != se::ReaderStatus::ok) {
+                    break;
+                }
+                T_WS = T_WB * T_BS;
+
+                // Construct gs::Camera used for rendering
+                Eigen::Matrix4f T_SW = se::math::to_inverse_transformation(T_WS);
+                torch::Tensor W2C_matrix = torch::from_blob(T_SW.data(), {4, 4}, torch::kFloat).clone().to(torch::kCUDA, true);
+                torch::Tensor proj_matrix =
+                    gs::getProjectionMatrix(input_colour_img.width(), input_colour_img.height(),
+                                            sensor->model.focalLengthU(), sensor->model.focalLengthV(),
+                                            sensor->model.imageCenterU(), sensor->model.imageCenterV())
+                        .to(torch::kCUDA, true);
+                camera.width = input_colour_img.width();
+                camera.height = input_colour_img.height();
+                camera.fov_x = sensor->horizontal_fov;
+                camera.fov_y = sensor->vertical_fov;
+                camera.T_W2C = W2C_matrix;
+                camera.full_proj_matrix = W2C_matrix.mm(proj_matrix);
+                camera.cam_center = W2C_matrix.inverse()[3].slice(0, 0, 3);
+                // Rendering
+                auto [image, viewspace_point_tensor, visibility_filter, radii] = gs::render(camera, *gs_model);
+                
+                // save the rendered rgb image
+                auto rendered_img_tensor = image.detach().permute({1, 2, 0}).contiguous().to(torch::kCPU);
+                rendered_img_tensor = rendered_img_tensor.mul(255).clamp(0, 255).to(torch::kU8);
+                auto cv_rendered_img = cv::Mat(image.size(1), image.size(2), CV_8UC3, rendered_img_tensor.data_ptr());
+
+                cv::Mat rendered_bgr;
+                cv::cvtColor(cv_rendered_img, rendered_bgr, cv::COLOR_RGB2BGR);
+
+                std::string color_image_file = rendered_dir + "/" + colour_image_name;
+                if (!cv::imwrite(color_image_file, rendered_bgr)) {
+                    std::cerr << "Failed to save rendered color image to " 
+                            << color_image_file << std::endl;
+                }
+
+                // // Save the rendered depth image
+                // const float min_d = 0.4f, max_d = 6.0f;
+                // auto dep_t = depth_img.detach()
+                //                 .permute({1,2,0})
+                //                 .contiguous()
+                //                 .to(torch::kCPU); // still float
+                // // assume depth tensor is [H,W,1], so squeeze
+                // dep_t = dep_t.squeeze();
+                // // convert to uchar with range [0,255]
+                // cv::Mat dep_f(image.size(1), image.size(2), CV_32FC1, dep_t.data_ptr());
+                // cv::Mat dep_u8;
+                // dep_f.convertTo(dep_u8, CV_8UC1,
+                //                 255.0f / (max_d - min_d),
+                //                 -255.0f * min_d / (max_d - min_d));
+                // cv::applyColorMap(dep_u8, dep_u8, cv::COLORMAP_VIRIDIS);
+                // cv::cvtColor(dep_u8, dep_u8, cv::COLOR_BGR2RGB);
+
+                // const std::string out_depth_fn = rendered_depth_dir + "/" + depth_image_name;
+                // if (!cv::imwrite(out_depth_fn, dep_u8)) {
+                //     std::cerr << "Failed to save depth image to " << out_depth_fn << "\n";
+                // }
+
+                // Compute evaluation metrics
+                // For evaluation, we assume the ground truth is available
+                // Check if the current camera view is in the training views
+                if (std::find(training_views_list.begin(), training_views_list.end(), colour_image_name) != training_views_list.end()) {
+                    // If it is, we can compute the evaluation metrics
+                    auto gt_training_view = cv::imread(config.reader.sequence_path + "/rgb/" + colour_image_name, cv::IMREAD_COLOR);
+
+                    // Compute PSNR
+                    float psnr = gs::eval::computePSNR(gt_training_view, rendered_bgr);
+
+                    // Convert to grayscale for SSIM computation
+                    cv::Mat gt_training_view_gray, rendered_bgr_gray;
+                    cv::cvtColor(gt_training_view, gt_training_view_gray, cv::COLOR_BGR2GRAY);
+                    cv::cvtColor(rendered_bgr, rendered_bgr_gray, cv::COLOR_BGR2GRAY);
+                    float ssim = gs::eval::computeSSIM(gt_training_view_gray, rendered_bgr_gray);
+
+                    // Compute LPIPS
+                    cv::Mat gt_training_view_f, rendered_bgr_f;
+                    gt_training_view.convertTo(gt_training_view_f, CV_32F, 1.0 / 255.0);
+                    rendered_bgr.convertTo(rendered_bgr_f, CV_32F, 1.0 / 255.0);
+                    float lpips = gs::eval::computeLPIPS(gt_training_view_f, rendered_bgr_f, lpips_model);
+
+                    // Store the evaluation metrics
+                    psnr_training.push_back(psnr);
+                    ssim_training.push_back(ssim);
+                    lpips_training.push_back(lpips);
+                } else {
+                    // If not, then it is a novel view
+                    auto gt_novel_view = cv::imread(config.reader.sequence_path + "/rgb/" + colour_image_name, cv::IMREAD_COLOR);   
+                    // Compute PSNR
+                    float psnr = gs::eval::computePSNR(gt_novel_view, rendered_bgr);
+                    // Compute SSIM  
+                    cv::Mat gt_novel_view_gray, rendered_bgr_gray;
+                    cv::cvtColor(gt_novel_view, gt_novel_view_gray, cv::COLOR_BGR2GRAY);
+                    cv::cvtColor(rendered_bgr, rendered_bgr_gray, cv::COLOR_BGR2GRAY);               
+                    float ssim = gs::eval::computeSSIM(gt_novel_view_gray, rendered_bgr_gray);
+                    // Compute LPIPS
+                    cv::Mat gt_novel_view_f, rendered_bgr_f;
+                    gt_novel_view.convertTo(gt_novel_view_f, CV_32F, 1.0 / 255.0);
+                    rendered_bgr.convertTo(rendered_bgr_f, CV_32F, 1.0 / 255.0);
+                    float lpips = gs::eval::computeLPIPS(gt_novel_view_f, rendered_bgr_f, lpips_model);
+                    // Store the evaluation metrics
+                    psnr_novel.push_back(psnr);
+                    ssim_novel.push_back(ssim);
+                    lpips_novel.push_back(lpips);
+                }
+                torch::cuda::synchronize();
+                printProgress(static_cast<double>(*frame) / (static_cast<double>(reader->numFrames()) - 1));
+            }
+            // Save the evaluation metrics to a file
+
+            // Lambda function to compute the mean of a vector
+            auto mean = [](const std::vector<float>& v) {
+                return std::accumulate(v.begin(), v.end(), 0.0) / v.size();
+            };
+
+            const std::string eval_file = config.reader.sequence_path + "/evaluation_results.txt";
+            std::ofstream eval_fs(eval_file, std::ios::out);
+            if (!eval_fs.good()) {
+                std::cerr << "Failed to open evaluation results file for writing!" << std::endl;
+            }
+
+            // Always write training views (assuming they exist)
+            if (!psnr_training.empty()) {
+                eval_fs << "Training views evaluation metrics:\n";
+                eval_fs << "PSNR: " << mean(psnr_training) << "\n";
+                eval_fs << "SSIM: " << mean(ssim_training) << "\n";
+                eval_fs << "LPIPS: " << mean(lpips_training) << "\n";
+                
+                std::cout << "============= Evaluation Results =============\n";
+                std::cout << "Training views:\n";
+                std::cout << "PSNR: " << mean(psnr_training) << "\n";
+                std::cout << "SSIM: " << mean(ssim_training) << "\n";
+                std::cout << "LPIPS: " << mean(lpips_training) << "\n";
+            }
+
+            // Only write novel views if they exist
+            if (!psnr_novel.empty()) {
+                eval_fs << "Novel views evaluation metrics:\n";
+                eval_fs << "PSNR: " << mean(psnr_novel) << "\n";
+                eval_fs << "SSIM: " << mean(ssim_novel) << "\n";
+                eval_fs << "LPIPS: " << mean(lpips_novel) << "\n";
+                
+                std::cout << "Novel views:\n";
+                std::cout << "PSNR: " << mean(psnr_novel) << "\n";
+                std::cout << "SSIM: " << mean(ssim_novel) << "\n";
+                std::cout << "LPIPS: " << mean(lpips_novel) << "\n";
+            } else {
+                eval_fs << "No novel views found for evaluation.\n";
+                std::cout << "No novel views found for evaluation.\n";
+            }
+
+            if (!psnr_training.empty() || !psnr_novel.empty()) {
+                std::cout << "==============================================\n";
+            }
+
+            eval_fs.close();
+            std::cout << "Evaluation results saved to " << eval_file << "\n";
+        }
         // stop_signal.store(true);
         // gui_thread.join();
         return 0;

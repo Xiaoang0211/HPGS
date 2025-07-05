@@ -53,6 +53,14 @@ struct ReaderConfig {
      */
     std::string ground_truth_file;
 
+    /** The path to the LPIPS model file.
+     * This is used for evaluating the quality of the rendered images.
+     */
+    std::string lpips_model_path;
+
+    /** path to write training_views.txt */
+    std::string training_views_list_path;
+
     /** The scaling factor to convert depth values to metres. A value of 0 will use the default
      * scaling for the particular dataset. This only needs to be set when using a modified dataset,
      * e.g. when using a dataset in the TUM format with depth scaled by 1000 instead of the default
@@ -150,7 +158,7 @@ class Reader {
      * \param[out] depth_image The next depth image.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name);
 
     /** Read the next depth image and ground truth pose.
      *
@@ -160,7 +168,7 @@ class Reader {
      * \param[out] T_WB         The next ground truth pose.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image, Eigen::Matrix4f& T_WB);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, Eigen::Matrix4f& T_WB);
 
     /** Read the next depth and colour images.
      *
@@ -170,7 +178,8 @@ class Reader {
      * \param[out] colour_image The next colour image.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image, Image<rgb_t>& colour_image);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, 
+                        Image<rgb_t>& colour_image, std::string* colour_image_name);
 
     /** Read the next depth and colour images and ground truth pose.
      *
@@ -181,7 +190,9 @@ class Reader {
      * \param[out] T_WB         The next ground truth pose.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image, Image<rgb_t>& colour_image, Eigen::Matrix4f& T_WB);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, 
+                        Image<rgb_t>& colour_image, std::string* colour_image_name,
+                        Eigen::Matrix4f& T_WB);
 
     /** Read the next depth and semantic images.
      *
@@ -191,7 +202,8 @@ class Reader {
      * \param[out] class_id_image The next colour image.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image, Image<semantics_t>& class_id_image);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, 
+                        Image<semantics_t>& class_id_image);
 
     /** Read the next depth and semantic images and ground truth pose.
      *
@@ -202,7 +214,8 @@ class Reader {
      * \param[out] T_WB           The next ground truth pose.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image, Image<semantics_t>& class_id_image, Eigen::Matrix4f& T_WB);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, 
+                        Image<semantics_t>& class_id_image, Eigen::Matrix4f& T_WB);
 
     /** Read the next depth, colour and semantic images.
      *
@@ -213,7 +226,9 @@ class Reader {
      * \param[out] class_id_image The next colour image.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image, Image<rgb_t>& colour_image, Image<semantics_t>& class_id_image);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, 
+                        Image<rgb_t>& colour_image, std::string* colour_image_name,
+                        Image<semantics_t>& class_id_image);
 
     /** Read the next depth, colour and semantic images and ground truth pose.
      *
@@ -225,7 +240,9 @@ class Reader {
      * \param[out] T_WB           The next ground truth pose.
      * \return An appropriate status code.
      */
-    ReaderStatus nextData(Image<float>& depth_image, Image<rgb_t>& colour_image, Image<semantics_t>& class_id_image, Eigen::Matrix4f& T_WB);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, 
+                        Image<rgb_t>& colour_image, std::string* colour_image_name,
+                        Image<semantics_t>& class_id_image, Eigen::Matrix4f& T_WB);
 
     /** Read the ground truth pose at the provided frame number.
      * Each line in the ground truth file should correspond to a single
@@ -382,7 +399,7 @@ class Reader {
      * \param[out] colour_image The next colour image.
      * \return An appropriate status code.
      */
-    virtual ReaderStatus nextColour(Image<rgb_t>& colour_image);
+    virtual ReaderStatus nextColour(Image<rgb_t>& colour_image, std::string* colour_image_name);
 
     /** Read the next semantics image.
      *
@@ -410,9 +427,11 @@ class Reader {
      * \param[out] depth_image The next depth image.
      * \return An appropriate status code.
      */
-    virtual ReaderStatus nextDepth(Image<float>& depth_image) = 0;
+    virtual ReaderStatus nextDepth(Image<float>& depth_image, std::string* depth_image_name) = 0;
 
-    ReaderStatus nextData(Image<float>& depth_image, Image<rgb_t>* colour_image, Image<semantics_t>* class_id_image, Eigen::Matrix4f* T_WB);
+    ReaderStatus nextData(Image<float>& depth_image, std::string* depth_image_name, 
+                        Image<rgb_t>* colour_image, std::string* colour_image_name, 
+                        Image<semantics_t>* class_id_image, Eigen::Matrix4f* T_WB);
 };
 
 } // namespace se
@@ -432,3 +451,4 @@ static std::ostream& operator<<(std::ostream& out, se::Reader* reader)
 
 
 #endif
+ 

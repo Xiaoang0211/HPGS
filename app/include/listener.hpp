@@ -93,11 +93,31 @@ public:
     void checkTerminationCondition();
     void Start();
     void Stop();
+    void set_training_views_list_path(const std::string& path) {
+        training_views_list_path_ = path;
+        // Open the training views list file for writing
+        training_views_list_.open(training_views_list_path_, std::ios::out | std::ios::trunc);
+        if (!training_views_list_.is_open()) {
+            RCLCPP_ERROR(this->get_logger(), "Failed to open training_views_list.txt for writing.");
+        }
+    }
+
+    void close_log_files() {
+        // Close the training views list file if it is open
+        if (training_views_list_.is_open()) {
+            training_views_list_.close();
+            RCLCPP_INFO(this->get_logger(), "Closed training_views_list.txt successfully.");
+        } else {
+            RCLCPP_WARN(this->get_logger(), "training_views_list.txt was not open.");
+        }
+        // Additional other log files can be closed here if needed
+    }
 
 private:
 
-    // debug 
-    std::ofstream outFile_;
+    // training views list file and path
+    std::ofstream training_views_list_;
+    std::string training_views_list_path_;
 
     // qos
     rmw_qos_profile_t sub_qos_profile_;

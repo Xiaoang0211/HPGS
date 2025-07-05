@@ -481,12 +481,18 @@ std::string se::TUMReader::name() const
 }
 
 
-se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image)
+se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image, std::string* depth_image_name)
 {
     if (frame_ >= num_frames_) {
         return se::ReaderStatus::error;
     }
     const std::string filename = sequence_path_ + "/" + depth_filenames_[frame_];
+
+    if (depth_image_name) {
+        *depth_image_name = std::filesystem::path(filename)
+                            .filename()
+                            .string();
+    }
 
     // Read the image data.
     cv::Mat image_data = cv::imread(filename.c_str(), cv::IMREAD_UNCHANGED);
@@ -510,15 +516,21 @@ se::ReaderStatus se::TUMReader::nextDepth(se::Image<float>& depth_image)
 }
 
 
-se::ReaderStatus se::TUMReader::nextColour(se::Image<rgb_t>& colour_image)
+se::ReaderStatus se::TUMReader::nextColour(se::Image<rgb_t>& colour_image, std::string* colour_image_name)
 {
     if (frame_ >= num_frames_) {
         return se::ReaderStatus::error;
     }
     if (rgb_filenames_.empty()) {
-        return se::Reader::nextColour(colour_image);
+        return se::Reader::nextColour(colour_image, colour_image_name);
     }
     const std::string filename = sequence_path_ + "/" + rgb_filenames_[frame_];
+
+    if (colour_image_name) {
+        *colour_image_name = std::filesystem::path(filename)
+                            .filename()
+                            .string();
+    }
 
     cv::Mat image_data = cv::imread(filename.c_str(), cv::IMREAD_COLOR);
 

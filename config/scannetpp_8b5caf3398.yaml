@@ -26,6 +26,7 @@ reader:
   reader_type:                "scannetpp"
   sequence_path:              "<scannetpp_scene_path>"
   ground_truth_file:          "<scannetpp_scene_path>/nerfstudio/transforms_undistorted_2.json"
+  lpips_model_path:           "<project_root_path>/parameter/vgg16.pth"
   fps:                        0.0
   drop_frames:                false
   verbose:                    0

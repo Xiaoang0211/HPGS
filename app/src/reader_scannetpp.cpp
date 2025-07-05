@@ -261,7 +261,7 @@ std::string se::ScanNetppReader::name() const
 }
 
 
-se::ReaderStatus se::ScanNetppReader::nextDepth(se::Image<float>& depth_image)
+se::ReaderStatus se::ScanNetppReader::nextDepth(se::Image<float>& depth_image, std::string* depth_image_name)
 {
     if (frame_ >= num_frames_) {
         return se::ReaderStatus::error;
@@ -269,6 +269,13 @@ se::ReaderStatus se::ScanNetppReader::nextDepth(se::Image<float>& depth_image)
 
     // Read the image data.
     const std::string filename = depth_filenames_[frame_];
+
+    if (depth_image_name) {
+        *depth_image_name = std::filesystem::path(filename)
+                                .filename()
+                                .string();
+    }
+
     cv::Mat image_data = cv::imread(filename.c_str(), cv::IMREAD_UNCHANGED);
     if (image_data.empty()) {
         return se::ReaderStatus::error;
@@ -290,7 +297,7 @@ se::ReaderStatus se::ScanNetppReader::nextDepth(se::Image<float>& depth_image)
 }
 
 
-se::ReaderStatus se::ScanNetppReader::nextColour(se::Image<rgb_t>& colour_image)
+se::ReaderStatus se::ScanNetppReader::nextColour(se::Image<rgb_t>& colour_image, std::string* colour_image_name)
 {
     if (frame_ >= num_frames_ || rgb_filenames_.empty()) {
         return se::ReaderStatus::error;
@@ -298,6 +305,13 @@ se::ReaderStatus se::ScanNetppReader::nextColour(se::Image<rgb_t>& colour_image)
 
     // Read the image data.
     const std::string filename = rgb_filenames_[frame_];
+
+    if (colour_image_name) {
+        *colour_image_name = std::filesystem::path(filename)
+                                .filename()
+                                .string();
+    }
+    
     cv::Mat image_data = cv::imread(filename.c_str(), cv::IMREAD_COLOR);
     if (image_data.empty()) {
         return se::ReaderStatus::error;

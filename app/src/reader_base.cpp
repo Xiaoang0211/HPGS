@@ -90,6 +90,7 @@ void se::ReaderConfig::readYaml(const std::string& filename)
     se::yaml::subnode_as_int(node, "verbose", verbose);
     se::yaml::subnode_as_string(node, "sequence_path", sequence_path);
     se::yaml::subnode_as_string(node, "ground_truth_file", ground_truth_file);
+    se::yaml::subnode_as_string(node, "lpips_model_path", lpips_model_path);
 
     // Expand ~ in the paths.
     sequence_path = se::str_utils::expand_user(sequence_path);
@@ -114,6 +115,7 @@ std::ostream& se::operator<<(std::ostream& os, const se::ReaderConfig& c)
     os << str_utils::str_to_pretty_str(se::reader_type_to_string(c.reader_type), "reader_type") << "\n";
     os << str_utils::str_to_pretty_str(c.sequence_path, "sequence_path") << "\n";
     os << str_utils::str_to_pretty_str(c.ground_truth_file, "ground_truth_file") << "\n";
+    os << str_utils::str_to_pretty_str(c.lpips_model_path, "lpips_model_path") << "\n";
     os << str_utils::value_to_pretty_str(c.fps, "fps") << "\n";
     os << str_utils::bool_to_pretty_str(c.drop_frames, "drop_frames") << "\n";
     os << str_utils::value_to_pretty_str(c.verbose, "verbose") << "\n";
@@ -189,51 +191,60 @@ se::Reader::Reader(const se::ReaderConfig& c) :
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name)
 {
-    return nextData(depth_image, nullptr, nullptr, nullptr);
+    return nextData(depth_image, depth_image_name, nullptr, nullptr, nullptr, nullptr);
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, Eigen::Matrix4f& T_WB)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name, Eigen::Matrix4f& T_WB)
 {
-    return nextData(depth_image, nullptr, nullptr, &T_WB);
+    return nextData(depth_image, depth_image_name, nullptr, nullptr, nullptr, &T_WB);
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<rgb_t>& colour_image)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, 
+                                    std::string* depth_image_name,
+                                    se::Image<rgb_t>& colour_image,
+                                    std::string* colour_image_name)
 {
-    return nextData(depth_image, &colour_image, nullptr, nullptr);
+    return nextData(depth_image, depth_image_name, &colour_image, colour_image_name, nullptr, nullptr);
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<rgb_t>& colour_image, Eigen::Matrix4f& T_WB)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name, 
+                                    se::Image<rgb_t>& colour_image, std::string* colour_image_name,
+                                    Eigen::Matrix4f& T_WB)
 {
-    return nextData(depth_image, &colour_image, nullptr, &T_WB);
+    return nextData(depth_image, depth_image_name, &colour_image, colour_image_name, nullptr, &T_WB);
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<se::semantics_t>& class_id_image)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name, se::Image<se::semantics_t>& class_id_image)
 {
-    return nextData(depth_image, nullptr, &class_id_image, nullptr);
+    return nextData(depth_image, depth_image_name, nullptr, nullptr, &class_id_image, nullptr);
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<se::semantics_t>& class_id_image, Eigen::Matrix4f& T_WB)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name, se::Image<se::semantics_t>& class_id_image, Eigen::Matrix4f& T_WB)
 {
-    return nextData(depth_image, nullptr, &class_id_image, &T_WB);
+    return nextData(depth_image, depth_image_name, nullptr, nullptr, &class_id_image, &T_WB);
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<rgb_t>& colour_image, se::Image<se::semantics_t>& class_id_image)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name, 
+                                    se::Image<rgb_t>& colour_image, std::string* colour_image_name, 
+                                    se::Image<se::semantics_t>& class_id_image)
 {
-    return nextData(depth_image, &colour_image, &class_id_image, nullptr);
+    return nextData(depth_image, depth_image_name, &colour_image, colour_image_name, &class_id_image, nullptr);
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<rgb_t>& colour_image, se::Image<se::semantics_t>& class_id_image, Eigen::Matrix4f& T_WB)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name, 
+                                    se::Image<rgb_t>& colour_image, std::string* colour_image_name,
+                                    se::Image<se::semantics_t>& class_id_image, Eigen::Matrix4f& T_WB)
 {
-    return nextData(depth_image, &colour_image, &class_id_image, &T_WB);
+    return nextData(depth_image, depth_image_name, &colour_image, colour_image_name, &class_id_image, &T_WB);
 }
 
 
@@ -362,7 +373,7 @@ se::ReaderStatus se::Reader::readPose(Eigen::Matrix4f& T_WB, const size_t frame,
         const size_t num_cols = line_data.size();
         if (num_cols < 7) {
             std::cerr << "Error: Invalid ground truth file format. "
-                      << "Expected line format: ... tx ty tz qx qy qz qw\n";
+                    << "Expected line format: ... tx ty tz qx qy qz qw\n";
             return se::ReaderStatus::error;
         }
         // Convert the last 7 columns to float
@@ -392,7 +403,7 @@ se::ReaderStatus se::Reader::readPose(Eigen::Matrix4f& T_WB, const size_t frame,
         if (std::abs(orientation.norm() - 1.0f) > 1e-3) {
             if (verbose_ >= 1) {
                 std::cerr << "Warning: Expected unit quaternion but got " << orientation.x() << " " << orientation.y() << " " << orientation.z() << " " << orientation.w() << " (x,y,z,w) with norm "
-                          << orientation.norm() << "\n";
+                        << orientation.norm() << "\n";
             }
             return se::ReaderStatus::skip;
         }
@@ -448,8 +459,12 @@ void se::Reader::nextFrame()
 }
 
 
-se::ReaderStatus se::Reader::nextColour(se::Image<se::rgb_t>& colour_image)
-{
+se::ReaderStatus se::Reader::nextColour(se::Image<se::rgb_t>& colour_image, std::string* colour_image_name)
+{   
+    if (colour_image_name) {
+        *colour_image_name = "";
+    }
+
     // Resize the output image if needed.
     if ((colour_image.width() != colour_image_res_.x()) || (colour_image.height() != colour_image_res_.y())) {
         colour_image = se::Image<rgb_t>(colour_image_res_.x(), colour_image_res_.y());
@@ -472,7 +487,9 @@ se::ReaderStatus se::Reader::nextSemantics(se::Image<se::semantics_t>& class_id_
 }
 
 
-se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<se::rgb_t>* colour_image, Image<semantics_t>* class_id_image, Eigen::Matrix4f* T_WB)
+se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, std::string* depth_image_name, 
+                                    se::Image<se::rgb_t>* colour_image, std::string* colour_image_name, 
+                                    Image<semantics_t>* class_id_image, Eigen::Matrix4f* T_WB)
 {
     if (!good()) {
         if (verbose_ >= 1) {
@@ -481,7 +498,7 @@ se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<s
         return status_;
     }
     nextFrame();
-    status_ = nextDepth(depth_image);
+    status_ = nextDepth(depth_image, depth_image_name);
     if (!good()) {
         if (verbose_ >= 1) {
             std::clog << "Stopping reading due to nextDepth() status: " << status_ << "\n";
@@ -489,7 +506,7 @@ se::ReaderStatus se::Reader::nextData(se::Image<float>& depth_image, se::Image<s
         return status_;
     }
     if (colour_image) {
-        status_ = mergeStatus(nextColour(*colour_image), status_);
+        status_ = mergeStatus(nextColour(*colour_image, colour_image_name), status_);
         if (!good()) {
             if (verbose_ >= 1) {
                 std::clog << "Stopping reading due to nextColour() status: " << status_ << "\n";
