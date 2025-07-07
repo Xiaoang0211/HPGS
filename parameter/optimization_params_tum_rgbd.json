@@ -15,5 +15,7 @@
   "global_iters": 20,
   "keep_all_frames": false,
   "qtree_min_num_leaves": 6400,
-  "post_subdivision": false
+  "post_subdivision": false,
+  "growth_rate": 0.05,
+  "max_shared_observations": 10
 }

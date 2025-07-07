@@ -117,6 +117,8 @@ void QTree::subdivideLeaf(Node& node) {
             child.has_keypoint_ = true;
             child.setNodeKeypoint(std::get<0>(pts[0]));
             child.setNodeMappoint(std::get<1>(pts[0]));
+            child.setKeypointDepth(std::get<2>(pts[0]));
+            child.setKeypointObservations(std::get<3>(pts[0]));
         }
     }
 }
@@ -191,6 +193,8 @@ void QTree::recursive_subdivide(Node& node) {
             node.has_keypoint_ = true;
             node.setNodeKeypoint(std::get<0>(pts[0])); // set Vector2f
             node.setNodeMappoint(std::get<1>(pts[0])); // set Vector3f
+            node.setKeypointDepth(std::get<2>(pts[0])); // set depth
+            node.setKeypointObservations(std::get<3>(pts[0])); // set observations
         }
         return;
     }

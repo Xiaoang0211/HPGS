@@ -13,5 +13,9 @@
   "non_kf_iters": 3,
   "random_kf_num": 2,
   "global_iters": 10,
-  "keep_all_frames": false
+  "keep_all_frames": false,
+  "qtree_min_num_leaves": 8000,
+  "post_subdivision": true,
+  "growth_rate": 0.05,
+  "max_shared_observations": 10
 }

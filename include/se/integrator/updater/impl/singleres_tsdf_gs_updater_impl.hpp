@@ -215,6 +215,7 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
     for (int i = 0; i < nodes.size(); i++) {
         gs::Node* node_ptr = nodes[i];
         const bool keypoint_exists = node_ptr->has_keypoint_;
+        const int num_observations = node_ptr->getKeypointObservations();
 
         // Backproject the cell center
         Eigen::Vector3f center;
@@ -261,12 +262,15 @@ void GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, Senso
         }
 
         if (keypoint_exists) {
+            if (num_observations > gs_model_.optimParams.max_shared_observations) {
+                continue; // skip nodes with too many redundant observations
+            }
             // add position color scales of keypoint
             Eigen::Vector2f keypoint_2d = node_ptr->getNodeKeypoint();
             Eigen::Vector3f mappoint = node_ptr->getNodeMappoint();
 
-            // keypoint scale
-            float keypoint_scale = 0.02f; // in meter, better scale: s = (z * 1.5) / f?
+            // keypoint scal1.5e
+            float keypoint_scale = (node_ptr->getKeypointDepth() * 1.5) / sensor_.model.focalLengthU();
             scales_keypoints.push_back(keypoint_scale);
 
             // keypoint 3d position

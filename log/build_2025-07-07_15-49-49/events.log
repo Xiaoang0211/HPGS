@@ -1,0 +1,118 @@
+[0.000000] (-) TimerEvent: {}
+[0.000119] (HPGS) JobQueued: {'identifier': 'HPGS', 'dependencies': OrderedDict()}
+[0.000681] (HPGS) JobStarted: {'identifier': 'HPGS'}
+[0.006954] (HPGS) JobProgress: {'identifier': 'HPGS', 'progress': 'cmake'}
+[0.007296] (HPGS) Command: {'cmd': ['/usr/bin/cmake', '/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2', '-DCMAKE_INSTALL_PREFIX=/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/install/HPGS'], 'cwd': '/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/build/HPGS', 'env': OrderedDict([('GJS_DEBUG_TOPICS', 'JS ERROR;JS LOG'), ('LANGUAGE', 'en_US:en'), ('USER', 'xiaoang'), ('LC_TIME', 'de_DE.UTF-8'), ('XDG_SESSION_TYPE', 'x11'), ('GIT_ASKPASS', '/usr/share/code/resources/app/extensions/git/dist/askpass.sh'), ('SHLVL', '1'), ('LD_LIBRARY_PATH', '/usr/local/cuda/lib64:/home/xiaoang/installs/cvsl_xin/lib:/home/xiaoang/installs/cvsl_deps/lib:/home/xiaoang/libtorch-cxx11-abi-shared-with-deps-2.5.1+cu124/libtorch/lib:/usr/local/cuda-12.6/lib64:/opt/ros/humble/opt/rviz_ogre_vendor/lib:/opt/ros/humble/lib/x86_64-linux-gnu:/opt/ros/humble/lib:/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/GSFusion_ROS2/third_party/open3d/lib:/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/GSFusion_ROS2/third_party/libtorch/lib:/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/GSFusion_ROS2/third_party/open3d/lib:/path/to/libtorch/lib'), ('HOME', '/home/xiaoang'), ('CHROME_DESKTOP', 'code.desktop'), ('CONDA_SHLVL', '0'), ('CYCLONEDDS_URI', 'file:///home/xiaoang/.cyclonedds/config.xml'), ('OLDPWD', '/home/xiaoang/MyLab/GSFusion_ROS2_ws'), ('TERM_PROGRAM_VERSION', '1.98.0'), ('DESKTOP_SESSION', 'ubuntu'), ('LSCOLORS', 'ExFxBxDxCxegedabagacad'), ('GIO_LAUNCHED_DESKTOP_FILE', '/usr/share/applications/code.desktop'), ('ROS_PYTHON_VERSION', '3'), ('GNOME_SHELL_SESSION_MODE', 'ubuntu'), ('GTK_MODULES', 'gail:atk-bridge'), ('VSCODE_GIT_ASKPASS_MAIN', '/usr/share/code/resources/app/extensions/git/dist/askpass-main.js'), ('LC_MONETARY', 'de_DE.UTF-8'), ('VSCODE_GIT_ASKPASS_NODE', '/usr/share/code/code'), ('MANAGERPID', '2833'), ('SYSTEMD_EXEC_PID', '3104'), ('DBUS_SESSION_BUS_ADDRESS', 'unix:path=/run/user/1000/bus'), ('CVSL_DATA_DIR', '/home/xiaoang/repo_cvsl/cvsl_data'), ('COLORTERM', 'truecolor'), ('_CE_M', ''), ('GIO_LAUNCHED_DESKTOP_FILE_PID', '8763'), ('ROS_DISTRO', 'humble'), ('GTK_IM_MODULE', 'ibus'), ('LOGNAME', 'xiaoang'), ('CVSL_CMAKE_PREFIX_PATH', '/home/xiaoang/installs/cvsl_deps;'), ('CVSL_CMAKE_INSTALL_PREFIX', '/home/xiaoang/installs/cvsl_xin'), ('JOURNAL_STREAM', '8:21182'), ('_', '/usr/bin/colcon'), ('ROS_VERSION', '2'), ('XDG_SESSION_CLASS', 'user'), ('USERNAME', 'xiaoang'), ('TERM', 'xterm-256color'), ('GNOME_DESKTOP_SESSION_ID', 'this-is-deprecated'), ('_CE_CONDA', ''), ('ROS_LOCALHOST_ONLY', '0'), ('WINDOWPATH', '2'), ('PATH', '/usr/local/cuda/bin:/home/xiaoang/installs/cvsl_xin/bin:/usr/local/cuda-12.6/bin:/home/xiaoang/.local/bin:/opt/ros/humble/bin:/home/xiaoang/anaconda3/condabin:/opt/gcc-arm-none-eabi-9-2020-q2-update/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin:/snap/bin:/home/xiaoang/.config/Code/User/globalStorage/github.copilot-chat/debugCommand:/usr/src/tensorrt/bin'), ('SESSION_MANAGER', 'local/laptop-host:@/tmp/.ICE-unix/3073,unix/laptop-host:/tmp/.ICE-unix/3073'), ('INVOCATION_ID', '154ef9f24ea64ab4a78f063d8cd9b3e0'), ('PAPERSIZE', 'a4'), ('XDG_MENU_PREFIX', 'gnome-'), ('LC_ADDRESS', 'de_DE.UTF-8'), ('XDG_RUNTIME_DIR', '/run/user/1000'), ('GDK_BACKEND', 'x11'), ('DISPLAY', ':1'), ('LANG', 'en_US.UTF-8'), ('XDG_CURRENT_DESKTOP', 'Unity'), ('LC_TELEPHONE', 'de_DE.UTF-8'), ('RMW_IMPLEMENTATION', 'rmw_fastrtps_cpp'), ('XMODIFIERS', '@im=ibus'), ('XDG_SESSION_DESKTOP', 'ubuntu'), ('XAUTHORITY', '/run/user/1000/gdm/Xauthority'), ('CVSL_DIR', '/home/xiaoang/repo_cvsl/cvsl'), ('LS_COLORS', 'auto'), ('VSCODE_GIT_IPC_HANDLE', '/run/user/1000/vscode-git-a16298c371.sock'), ('TERM_PROGRAM', 'vscode'), ('SSH_AGENT_LAUNCHER', 'gnome-keyring'), ('SSH_AUTH_SOCK', '/run/user/1000/keyring/ssh'), ('ROS_DOMAIN_ID', '10'), ('AMENT_PREFIX_PATH', '/opt/ros/humble'), ('CONDA_PYTHON_EXE', '/home/xiaoang/anaconda3/bin/python'), ('ORIGINAL_XDG_CURRENT_DESKTOP', 'ubuntu:GNOME'), ('SHELL', '/bin/bash'), ('LC_NAME', 'de_DE.UTF-8'), ('QT_ACCESSIBILITY', '1'), ('GDMSESSION', 'ubuntu'), ('Torch_DIR', '/home/xiaoang/MyLab/GSFusion/third_party/libtorch'), ('LC_MEASUREMENT', 'de_DE.UTF-8'), ('GPG_AGENT_INFO', '/run/user/1000/gnupg/S.gpg-agent:0:1'), ('GJS_DEBUG_OUTPUT', 'stderr'), ('LC_IDENTIFICATION', 'de_DE.UTF-8'), ('VSCODE_GIT_ASKPASS_EXTRA_ARGS', ''), ('QT_IM_MODULE', 'ibus'), ('PWD', '/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/build/HPGS'), ('CLICOLOR', '1'), ('LC_ALL', 'en_US.UTF-8'), ('XDG_CONFIG_DIRS', '/etc/xdg/xdg-ubuntu:/etc/xdg'), ('CONDA_EXE', '/home/xiaoang/anaconda3/bin/conda'), ('XDG_DATA_DIRS', '/usr/share/ubuntu:/usr/share/gnome:/usr/local/share/:/usr/share/:/var/lib/snapd/desktop'), ('PYTHONPATH', '/opt/ros/humble/lib/python3.10/site-packages:/opt/ros/humble/local/lib/python3.10/dist-packages'), ('LC_NUMERIC', 'de_DE.UTF-8'), ('LC_PAPER', 'de_DE.UTF-8'), ('COLCON', '1'), ('CMAKE_PREFIX_PATH', '/opt/ros/humble')]), 'shell': False}
+[0.096277] (HPGS) StdoutLine: {'line': b'-- The C compiler identification is GNU 11.4.0\n'}
+[0.099800] (-) TimerEvent: {}
+[0.155702] (HPGS) StdoutLine: {'line': b'-- The CXX compiler identification is GNU 11.4.0\n'}
+[0.199923] (-) TimerEvent: {}
+[0.300185] (-) TimerEvent: {}
+[0.400476] (-) TimerEvent: {}
+[0.500742] (-) TimerEvent: {}
+[0.601024] (-) TimerEvent: {}
+[0.701383] (-) TimerEvent: {}
+[0.801669] (-) TimerEvent: {}
+[0.901920] (-) TimerEvent: {}
+[0.940492] (HPGS) StdoutLine: {'line': b'-- The CUDA compiler identification is NVIDIA 12.6.85 with host compiler GNU 11.4.0\n'}
+[0.948819] (HPGS) StdoutLine: {'line': b'-- Detecting C compiler ABI info\n'}
+[1.002041] (-) TimerEvent: {}
+[1.004129] (HPGS) StdoutLine: {'line': b'-- Detecting C compiler ABI info - done\n'}
+[1.017247] (HPGS) StdoutLine: {'line': b'-- Check for working C compiler: /usr/bin/cc - skipped\n'}
+[1.017655] (HPGS) StdoutLine: {'line': b'-- Detecting C compile features\n'}
+[1.018089] (HPGS) StdoutLine: {'line': b'-- Detecting C compile features - done\n'}
+[1.029417] (HPGS) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info\n'}
+[1.092948] (HPGS) StdoutLine: {'line': b'-- Detecting CXX compiler ABI info - done\n'}
+[1.102162] (-) TimerEvent: {}
+[1.105482] (HPGS) StdoutLine: {'line': b'-- Check for working CXX compiler: /usr/bin/c++ - skipped\n'}
+[1.106032] (HPGS) StdoutLine: {'line': b'-- Detecting CXX compile features\n'}
+[1.106435] (HPGS) StdoutLine: {'line': b'-- Detecting CXX compile features - done\n'}
+[1.115176] (HPGS) StdoutLine: {'line': b'-- Detecting CUDA compiler ABI info\n'}
+[1.202292] (-) TimerEvent: {}
+[1.302670] (-) TimerEvent: {}
+[1.403083] (-) TimerEvent: {}
+[1.503498] (-) TimerEvent: {}
+[1.603828] (-) TimerEvent: {}
+[1.704124] (-) TimerEvent: {}
+[1.804417] (-) TimerEvent: {}
+[1.870186] (HPGS) StdoutLine: {'line': b'-- Detecting CUDA compiler ABI info - done\n'}
+[1.900632] (HPGS) StdoutLine: {'line': b'-- Check for working CUDA compiler: /usr/local/cuda/bin/nvcc - skipped\n'}
+[1.904512] (-) TimerEvent: {}
+[1.946760] (HPGS) StdoutLine: {'line': b'-- Detecting CUDA compile features\n'}
+[1.947029] (HPGS) StdoutLine: {'line': b'-- Detecting CUDA compile features - done\n'}
+[1.957089] (HPGS) StdoutLine: {'line': b'-- Building with 14 out of 16 available cores\n'}
+[2.004636] (-) TimerEvent: {}
+[2.005950] (HPGS) StdoutLine: {'line': b'-- Found OpenCV: /usr (found version "4.5.4") found components: core imgcodecs imgproc\n'}
+[2.006150] (HPGS) StderrLine: {'line': b'\x1b[33mCMake Warning (dev) at CMakeLists.txt:30 (find_package):\n'}
+[2.006245] (HPGS) StderrLine: {'line': b'  Policy CMP0167 is not set: The FindBoost module is removed.  Run "cmake\n'}
+[2.006301] (HPGS) StderrLine: {'line': b'  --help-policy CMP0167" for policy details.  Use the cmake_policy command to\n'}
+[2.006349] (HPGS) StderrLine: {'line': b'  set the policy and suppress this warning.\n'}
+[2.006395] (HPGS) StderrLine: {'line': b'\n'}
+[2.006438] (HPGS) StderrLine: {'line': b'This warning is for project developers.  Use -Wno-dev to suppress it.\n'}
+[2.006492] (HPGS) StderrLine: {'line': b'\x1b[0m\n'}
+[2.024213] (HPGS) StdoutLine: {'line': b'-- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0")\n'}
+[2.058157] (HPGS) StdoutLine: {'line': b'-- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)\n'}
+[2.104733] (-) TimerEvent: {}
+[2.174694] (HPGS) StdoutLine: {'line': b'-- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter\n'}
+[2.204850] (-) TimerEvent: {}
+[2.305130] (-) TimerEvent: {}
+[2.317581] (HPGS) StdoutLine: {'line': b'-- Found CUDA: /usr/local/cuda (found version "12.6") \n'}
+[2.318182] (HPGS) StdoutLine: {'line': b'-- Caffe2: CUDA detected: 12.6\n'}
+[2.318270] (HPGS) StdoutLine: {'line': b'-- Caffe2: CUDA nvcc is: /usr/local/cuda/bin/nvcc\n'}
+[2.318327] (HPGS) StdoutLine: {'line': b'-- Caffe2: CUDA toolkit directory: /usr/local/cuda\n'}
+[2.405242] (-) TimerEvent: {}
+[2.407965] (HPGS) StdoutLine: {'line': b'-- Caffe2: Header version is: 12.6\n'}
+[2.414861] (HPGS) StderrLine: {'line': b'\x1b[33mCMake Warning at third_party/libtorch/share/cmake/Caffe2/public/cuda.cmake:166 (message):\n'}
+[2.415057] (HPGS) StderrLine: {'line': b'  Failed to compute shorthash for libnvrtc.so\n'}
+[2.415117] (HPGS) StderrLine: {'line': b'Call Stack (most recent call first):\n'}
+[2.415167] (HPGS) StderrLine: {'line': b'  third_party/libtorch/share/cmake/Caffe2/Caffe2Config.cmake:88 (include)\n'}
+[2.415213] (HPGS) StderrLine: {'line': b'  third_party/libtorch/share/cmake/Torch/TorchConfig.cmake:68 (find_package)\n'}
+[2.415259] (HPGS) StderrLine: {'line': b'  CMakeLists.txt:41 (find_package)\n'}
+[2.415304] (HPGS) StderrLine: {'line': b'\n'}
+[2.415347] (HPGS) StderrLine: {'line': b'\x1b[0m\n'}
+[2.417934] (HPGS) StdoutLine: {'line': b'-- USE_CUDNN is set to 0. Compiling without cuDNN support\n'}
+[2.505354] (-) TimerEvent: {}
+[2.605608] (-) TimerEvent: {}
+[2.705905] (-) TimerEvent: {}
+[2.806218] (-) TimerEvent: {}
+[2.906572] (-) TimerEvent: {}
+[3.006925] (-) TimerEvent: {}
+[3.107186] (-) TimerEvent: {}
+[3.207440] (-) TimerEvent: {}
+[3.216549] (HPGS) StdoutLine: {'line': b'-- Autodetected CUDA architecture(s):  8.6\n'}
+[3.216783] (HPGS) StdoutLine: {'line': b'-- Added CUDA NVCC flags for: -gencode;arch=compute_86,code=sm_86\n'}
+[3.307554] (-) TimerEvent: {}
+[3.343480] (HPGS) StdoutLine: {'line': b'-- Found Torch: /home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/third_party/libtorch/lib/libtorch.so  \n'}
+[3.345211] (HPGS) StdoutLine: {'line': b'-- Found CUDAToolkit: /usr/local/cuda/targets/x86_64-linux/include (found version "12.6.85")\n'}
+[3.345910] (HPGS) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n'}
+[3.403769] (HPGS) StdoutLine: {'line': b'-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n'}
+[3.404566] (HPGS) StdoutLine: {'line': b'-- Found Threads: TRUE\n'}
+[3.407624] (-) TimerEvent: {}
+[3.472658] (HPGS) StderrLine: {'line': b'\x1b[33mCMake Warning (dev) at CMakeLists.txt:49 (find_package):\n'}
+[3.472815] (HPGS) StderrLine: {'line': b'  Policy CMP0148 is not set: The FindPythonInterp and FindPythonLibs modules\n'}
+[3.472936] (HPGS) StderrLine: {'line': b'  are removed.  Run "cmake --help-policy CMP0148" for policy details.  Use\n'}
+[3.473019] (HPGS) StderrLine: {'line': b'  the cmake_policy command to set the policy and suppress this warning.\n'}
+[3.473081] (HPGS) StderrLine: {'line': b'\n'}
+[3.473135] (HPGS) StderrLine: {'line': b'This warning is for project developers.  Use -Wno-dev to suppress it.\n'}
+[3.473194] (HPGS) StderrLine: {'line': b'\x1b[0m\n'}
+[3.507735] (-) TimerEvent: {}
+[3.529524] (HPGS) StdoutLine: {'line': b'-- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython3.10.so (found version "3.10.12")\n'}
+[3.607849] (-) TimerEvent: {}
+[3.708127] (-) TimerEvent: {}
+[3.808384] (-) TimerEvent: {}
+[3.846110] (HPGS) StdoutLine: {'line': b'-- CMAKE_BUILD_TYPE set to Release.\n'}
+[3.847958] (HPGS) StdoutLine: {'line': b'-- Found OpenCV: /usr (found version "4.5.4") found components: highgui imgproc core features2d\n'}
+[3.850564] (HPGS) StderrLine: {'line': b'\x1b[31mCMake Error at third_party/tinyply/CMakeLists.txt:1 (cmake_minimum_required):\n'}
+[3.850726] (HPGS) StderrLine: {'line': b'  Compatibility with CMake < 3.5 has been removed from CMake.\n'}
+[3.850785] (HPGS) StderrLine: {'line': b'\n'}
+[3.850835] (HPGS) StderrLine: {'line': b'  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax\n'}
+[3.850916] (HPGS) StderrLine: {'line': b'  to tell CMake that the project requires at least <min> but has been updated\n'}
+[3.850970] (HPGS) StderrLine: {'line': b'  to work with policies introduced by <max> or earlier.\n'}
+[3.851015] (HPGS) StderrLine: {'line': b'\n'}
+[3.851059] (HPGS) StderrLine: {'line': b'  Or, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.\n'}
+[3.851106] (HPGS) StderrLine: {'line': b'\n'}
+[3.851150] (HPGS) StderrLine: {'line': b'\x1b[0m\n'}
+[3.851194] (HPGS) StdoutLine: {'line': b'-- Configuring incomplete, errors occurred!\n'}
+[3.859549] (HPGS) CommandEnded: {'returncode': 1}
+[3.871962] (HPGS) JobEnded: {'identifier': 'HPGS', 'rc': 1}
+[3.882362] (-) EventReactorShutdown: {}

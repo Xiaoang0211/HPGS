@@ -54,6 +54,10 @@ OptimizationParameters read_optim_params_from_json(const std::string& path)
     params.random_kf_num = json["random_kf_num"];
     params.global_iters = json["global_iters"];
     params.keep_all_frames = json["keep_all_frames"];
+    params.qtree_min_num_leaves = json["qtree_min_num_leaves"];
+    params.post_subdivision = json["post_subdivision"];
+    params.growth_rate = json["growth_rate"];
+    params.max_shared_observations = json["max_shared_observations"];
 
     return params;
 }

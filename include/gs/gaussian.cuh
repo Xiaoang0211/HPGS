@@ -36,6 +36,7 @@ struct OptimizationParameters {
     int qtree_min_num_leaves = 16000; // for 640x480 images
     bool post_subdivision = false; 
     float growth_rate = 0.05;
+    int max_shared_observations = 10; // Maximum number of shared observations per Gaussian
 };
 
 OptimizationParameters read_optim_params_from_json(const std::string& path);

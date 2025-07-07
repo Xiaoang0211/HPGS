@@ -1,0 +1,74 @@
+[0.008s] Invoking command in '/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/build/HPGS': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2 -DCMAKE_INSTALL_PREFIX=/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/install/HPGS
+[0.096s] -- The C compiler identification is GNU 11.4.0
+[0.155s] -- The CXX compiler identification is GNU 11.4.0
+[0.940s] -- The CUDA compiler identification is NVIDIA 12.6.85 with host compiler GNU 11.4.0
+[0.948s] -- Detecting C compiler ABI info
+[1.004s] -- Detecting C compiler ABI info - done
+[1.017s] -- Check for working C compiler: /usr/bin/cc - skipped
+[1.017s] -- Detecting C compile features
+[1.017s] -- Detecting C compile features - done
+[1.029s] -- Detecting CXX compiler ABI info
+[1.092s] -- Detecting CXX compiler ABI info - done
+[1.105s] -- Check for working CXX compiler: /usr/bin/c++ - skipped
+[1.105s] -- Detecting CXX compile features
+[1.106s] -- Detecting CXX compile features - done
+[1.115s] -- Detecting CUDA compiler ABI info
+[1.870s] -- Detecting CUDA compiler ABI info - done
+[1.900s] -- Check for working CUDA compiler: /usr/local/cuda/bin/nvcc - skipped
+[1.946s] -- Detecting CUDA compile features
+[1.946s] -- Detecting CUDA compile features - done
+[1.956s] -- Building with 14 out of 16 available cores
+[2.005s] -- Found OpenCV: /usr (found version "4.5.4") found components: core imgcodecs imgproc
+[2.006s] [33mCMake Warning (dev) at CMakeLists.txt:30 (find_package):
+[2.006s]   Policy CMP0167 is not set: The FindBoost module is removed.  Run "cmake
+[2.006s]   --help-policy CMP0167" for policy details.  Use the cmake_policy command to
+[2.006s]   set the policy and suppress this warning.
+[2.006s] 
+[2.006s] This warning is for project developers.  Use -Wno-dev to suppress it.
+[2.006s] [0m
+[2.024s] -- Found Boost: /usr/lib/x86_64-linux-gnu/cmake/Boost-1.74.0/BoostConfig.cmake (found version "1.74.0")
+[2.058s] -- Found ament_cmake: 1.3.11 (/opt/ros/humble/share/ament_cmake/cmake)
+[2.174s] -- Found Python3: /usr/bin/python3 (found version "3.10.12") found components: Interpreter
+[2.317s] -- Found CUDA: /usr/local/cuda (found version "12.6") 
+[2.318s] -- Caffe2: CUDA detected: 12.6
+[2.318s] -- Caffe2: CUDA nvcc is: /usr/local/cuda/bin/nvcc
+[2.318s] -- Caffe2: CUDA toolkit directory: /usr/local/cuda
+[2.407s] -- Caffe2: Header version is: 12.6
+[2.414s] [33mCMake Warning at third_party/libtorch/share/cmake/Caffe2/public/cuda.cmake:166 (message):
+[2.414s]   Failed to compute shorthash for libnvrtc.so
+[2.414s] Call Stack (most recent call first):
+[2.415s]   third_party/libtorch/share/cmake/Caffe2/Caffe2Config.cmake:88 (include)
+[2.415s]   third_party/libtorch/share/cmake/Torch/TorchConfig.cmake:68 (find_package)
+[2.415s]   CMakeLists.txt:41 (find_package)
+[2.415s] 
+[2.415s] [0m
+[2.417s] -- USE_CUDNN is set to 0. Compiling without cuDNN support
+[3.216s] -- Autodetected CUDA architecture(s):  8.6
+[3.216s] -- Added CUDA NVCC flags for: -gencode;arch=compute_86,code=sm_86
+[3.343s] -- Found Torch: /home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/third_party/libtorch/lib/libtorch.so  
+[3.345s] -- Found CUDAToolkit: /usr/local/cuda/targets/x86_64-linux/include (found version "12.6.85")
+[3.345s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+[3.403s] -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+[3.404s] -- Found Threads: TRUE
+[3.472s] [33mCMake Warning (dev) at CMakeLists.txt:49 (find_package):
+[3.472s]   Policy CMP0148 is not set: The FindPythonInterp and FindPythonLibs modules
+[3.472s]   are removed.  Run "cmake --help-policy CMP0148" for policy details.  Use
+[3.472s]   the cmake_policy command to set the policy and suppress this warning.
+[3.472s] 
+[3.472s] This warning is for project developers.  Use -Wno-dev to suppress it.
+[3.473s] [0m
+[3.529s] -- Found PythonLibs: /usr/lib/x86_64-linux-gnu/libpython3.10.so (found version "3.10.12")
+[3.846s] -- CMAKE_BUILD_TYPE set to Release.
+[3.847s] -- Found OpenCV: /usr (found version "4.5.4") found components: highgui imgproc core features2d
+[3.850s] [31mCMake Error at third_party/tinyply/CMakeLists.txt:1 (cmake_minimum_required):
+[3.850s]   Compatibility with CMake < 3.5 has been removed from CMake.
+[3.850s] 
+[3.850s]   Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+[3.850s]   to tell CMake that the project requires at least <min> but has been updated
+[3.850s]   to work with policies introduced by <max> or earlier.
+[3.850s] 
+[3.850s]   Or, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+[3.850s] 
+[3.850s] [0m
+[3.851s] -- Configuring incomplete, errors occurred!
+[3.859s] Invoked command in '/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/build/HPGS' returned '1': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2 -DCMAKE_INSTALL_PREFIX=/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/install/HPGS

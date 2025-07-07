@@ -26,9 +26,13 @@ public:
 
     inline void setNodeKeypoint(const Eigen::Vector2f& keypoint) { node_keypoint_ = keypoint; }
     inline void setNodeMappoint(const Eigen::Vector3f& mappoint) { node_mappoint_ = mappoint; }
+    inline void setKeypointDepth(float depth) { keypoint_depth_ = depth; }
+    inline void setKeypointObservations(int observations) { keypoint_obervations_ = observations; }
 
     inline Eigen::Vector2f getNodeKeypoint() const { return node_keypoint_; }
     inline Eigen::Vector3f getNodeMappoint() const { return node_mappoint_; }
+    inline float getKeypointDepth() const { return keypoint_depth_; }
+    inline int getKeypointObservations() const { return keypoint_obervations_; }
     const  std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& getPoints() const { return keypoints_; }
     bool   has_keypoint_{false};
 
@@ -37,6 +41,8 @@ private:
     std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>> keypoints_;
     Eigen::Vector2f node_keypoint_;
     Eigen::Vector3f node_mappoint_;
+    float keypoint_depth_{0.0f};
+    int keypoint_obervations_{0};
 };
 
 // Quadtree managing root and building leaves

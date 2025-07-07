@@ -1,0 +1,2 @@
+Invoking command in '/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/build/HPGS': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2 -DCMAKE_INSTALL_PREFIX=/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/install/HPGS
+Invoked command in '/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/build/HPGS' returned '1': CMAKE_PREFIX_PATH=/opt/ros/humble /usr/bin/cmake /home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2 -DCMAKE_INSTALL_PREFIX=/home/xiaoang/MyLab/GSFusion_ROS2_ws/src/HPGS_ROS2/install/HPGS
