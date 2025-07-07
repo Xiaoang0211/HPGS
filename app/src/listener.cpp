@@ -567,7 +567,7 @@ int main(int argc, char** argv)
         if (vslam_listener_node->online_optimization_finished_) {
             // shut down ros2
             std::cout << "Shutting down ROS2 ...\n"; 
-            vslam_listener_node->Stop(); // stop the online gs mapping thread
+            vslam_listener_node.reset(); // stop the online gs mapping thread
             //stop writing to training_views_list.txt
             vslam_listener_node->close_log_files();
             // vslam_listener_node.reset();
