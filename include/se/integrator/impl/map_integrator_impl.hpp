@@ -35,7 +35,7 @@ struct GSIntegrateImplD {
                           gs::DataQueue& data_queue,
                           const Image<float>& depth_img,
                           const Image<rgb_t>* colour_img,
-                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints,
                           const Image<semantics_t>* class_img,
                           const Eigen::Matrix4f& T_WS,
                           const unsigned int frame);
@@ -53,7 +53,7 @@ struct GSIntegrateImplD<Field::TSDF, Res::Single> {
                           gs::DataQueue& data_queue,
                           const Image<float>& depth_img,
                           const Image<rgb_t>* colour_img,
-                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints,
                           const Image<semantics_t>* class_img,
                           const Eigen::Matrix4f& T_WS,
                           const unsigned int frame)
@@ -89,7 +89,7 @@ typename std::enable_if_t<MapT::col_ == Colour::On> integrate(MapT& map,
                                                               gs::DataQueue& data_queue,
                                                               const Image<float>& depth_img,
                                                               const Image<rgb_t>& colour_img,
-                                                              const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+                                                              const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f,float, int>>& keypoints,
                                                               const SensorT& sensor,
                                                               const Eigen::Matrix4f& T_WS,
                                                               const unsigned int frame)

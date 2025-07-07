@@ -13,7 +13,7 @@ struct LeafEntry {
 
 QTree::QTree(int min_pixel_size,
                 const cv::Mat& image,
-                const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+                const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints,
                 int min_leaves,
                 bool post_subdivide)
 : root_(0, 0, image.cols, image.rows, keypoints),
@@ -101,7 +101,7 @@ void QTree::subdivideLeaf(Node& node) {
 
     const auto& pts = node.getPoints();
     int xm = x0 + w/2, ym = y0 + h/2;
-    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> bins[4];
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>> bins[4];
     for (const auto& p : pts) {
         bins[quadrantIndex(p, xm, ym)].push_back(p);
     }
@@ -164,7 +164,7 @@ void QTree::visualize(const cv::Mat& image, int thickness, cv::Scalar color) {
     cv::waitKey(0);
 }
 
-inline int QTree::quadrantIndex(const std::tuple<Eigen::Vector2f, Eigen::Vector3f>& p, 
+inline int QTree::quadrantIndex(const std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>& p, 
                                 int xm, int ym) {
     Eigen::Vector2f p_2f = std::get<0>(p);
     return (p_2f.x() >= xm ? 1 : 0) + (p_2f.y() >= ym ? 2 : 0);
@@ -199,7 +199,7 @@ void QTree::recursive_subdivide(Node& node) {
     int w = node.getWidth(), h = node.getHeight();
     int xm = x0 + w/2, ym = y0 + h/2;
 
-    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> bins[4];
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>> bins[4];
     for (const auto& p : pts) {
         bins[quadrantIndex(p, xm, ym)].push_back(p);
     }

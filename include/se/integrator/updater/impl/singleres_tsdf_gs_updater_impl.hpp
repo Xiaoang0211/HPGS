@@ -32,7 +32,7 @@ GSUpdater<Map<Data<Field::TSDF, ColB, SemB>, Res::Single, BlockSize>, SensorT>::
                                                                                           gs::DataQueue& data_queue,
                                                                                           const Image<float>& depth_img,
                                                                                           const Image<rgb_t>* colour_img,
-                                                                                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+                                                                                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints,
                                                                                           const Image<semantics_t>* class_img,
                                                                                           const Eigen::Matrix4f& T_WS,
                                                                                           const int frame) :

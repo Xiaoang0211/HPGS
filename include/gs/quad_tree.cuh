@@ -10,7 +10,7 @@ namespace gs {
 // Quadtree node dividing points until at most one per leaf
 class Node {
 public:
-    Node(int x0, int y0, int width, int height, const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints)
+    Node(int x0, int y0, int width, int height, const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints)
         : x0_(x0), y0_(y0), width_(width), height_(height), keypoints_(keypoints)
     {}
 
@@ -29,12 +29,12 @@ public:
 
     inline Eigen::Vector2f getNodeKeypoint() const { return node_keypoint_; }
     inline Eigen::Vector3f getNodeMappoint() const { return node_mappoint_; }
-    const  std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& getPoints() const { return keypoints_; }
+    const  std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& getPoints() const { return keypoints_; }
     bool   has_keypoint_{false};
 
 private:
     int x0_, y0_, width_, height_;
-    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> keypoints_;
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>> keypoints_;
     Eigen::Vector2f node_keypoint_;
     Eigen::Vector3f node_mappoint_;
 };
@@ -45,7 +45,7 @@ public:
     // Constructor
     QTree(int min_pixel_size,
           const cv::Mat& image,
-          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints,
           int min_leaves,
           bool post_subdivide);
 
@@ -72,7 +72,7 @@ private:
     std::unordered_map<Node*, size_t>    leaf_index_;
 
     // Utilities
-    inline int quadrantIndex(const std::tuple<Eigen::Vector2f, Eigen::Vector3f>& p, 
+    inline int quadrantIndex(const std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>& p, 
                              int xm, int ym);
     inline std::array<int,4> childBounds(int idx, int x0, int y0, int w, int h);
     void subdivideLeaf(Node& node);

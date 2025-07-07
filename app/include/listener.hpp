@@ -88,7 +88,7 @@ public:
     void insertGSMappingInput(const Eigen::Matrix4f& T_WS, 
                               const se::Image<se::rgb_t>& input_colour_img, 
                               const se::Image<float>& input_depth_img,
-                              const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints, 
+                              const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints, 
                               const int current_frame_id);
     void checkTerminationCondition();
     void Start();
@@ -204,16 +204,16 @@ private:
     void gsOnlineMapping(const Eigen::Matrix4f& T_WS, 
                          const se::Image<se::rgb_t>& input_colour_img, 
                          const se::Image<float>& input_depth_img,
-                         const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints,
+                         const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints,
                          const int current_frame_id);
     void pointcloud2_to_eigen(const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg,
-                              std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& points2d3d);
+                              std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& points2d3d);
 
     // For GSFusion online optimization thread
     Queue<std::tuple<Eigen::Matrix4f, 
                      se::Image<se::rgb_t>, 
                      se::Image<float>, 
-                     std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>, 
+                     std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>, 
                      int>> gs_mapping_queue_;
 
     template<typename MessageType, typename Function>

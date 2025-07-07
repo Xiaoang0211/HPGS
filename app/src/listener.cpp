@@ -203,7 +203,7 @@ void VSLAMListener::Start()
     startThread(gs_mapping_queue_, [this](const Eigen::Matrix4f& T_WS, 
                                           const se::Image<se::rgb_t>& input_colour_img, 
                                           const se::Image<float>& input_depth_img,
-                                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints, 
+                                          const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints, 
                                           const int current_frame_id)
     {
         this->gsOnlineMapping(T_WS, input_colour_img, input_depth_img, keypoints, current_frame_id);
@@ -303,7 +303,7 @@ void VSLAMListener::msgCallbackTmp( const sensor_msgs::msg::PointCloud2::ConstSh
     se::Image<se::rgb_t> input_colour_img(input_img_res.x(), input_img_res.y(), {0, 0, 0});
 
     // Setup input keypoints
-    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> keypoints;
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>> keypoints;
     this->pointcloud2_to_eigen(keypoints_msg, keypoints);
  
     this->setDepthImage(input_depth_img, depth_image);
@@ -314,27 +314,35 @@ void VSLAMListener::msgCallbackTmp( const sensor_msgs::msg::PointCloud2::ConstSh
 
 void VSLAMListener::pointcloud2_to_eigen(
     const sensor_msgs::msg::PointCloud2::ConstSharedPtr& msg,
-    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& points2d3d)
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& points)
 {
     size_t n_pts = msg->width * msg->height;
-    points2d3d.clear();
-    points2d3d.reserve(n_pts);
+    points.clear();
+    points.reserve(n_pts);
 
     sensor_msgs::PointCloud2ConstIterator<float> u_it(*msg, "u");
     sensor_msgs::PointCloud2ConstIterator<float> v_it(*msg, "v");
+    sensor_msgs::PointCloud2ConstIterator<float> d_it(*msg, "d");
     sensor_msgs::PointCloud2ConstIterator<float> x_it(*msg, "x");
     sensor_msgs::PointCloud2ConstIterator<float> y_it(*msg, "y");
     sensor_msgs::PointCloud2ConstIterator<float> z_it(*msg, "z");
+    sensor_msgs::PointCloud2ConstIterator<float> o_it(*msg, "o");
 
-    for (; u_it != u_it.end(); ++u_it, ++v_it, ++x_it, ++y_it, ++z_it)
+
+
+    for (; u_it != u_it.end(); ++u_it, ++v_it, ++d_it, ++x_it, ++y_it, ++z_it, ++o_it)
     {
-        if (!std::isfinite(*u_it) || !std::isfinite(*v_it) ||
-            !std::isfinite(*x_it) || !std::isfinite(*y_it) || !std::isfinite(*z_it))
+        if (!std::isfinite(*u_it) || !std::isfinite(*v_it) || !std::isfinite(*d_it) ||
+            !std::isfinite(*x_it) || !std::isfinite(*y_it) || 
+            !std::isfinite(*z_it) || !std::isfinite(*o_it))
             continue;
 
         Eigen::Vector2f keypoint(*u_it, *v_it);
         Eigen::Vector3f mappoint(*x_it, *y_it, *z_it);
-        points2d3d.emplace_back(keypoint, mappoint);
+        float depth = *d_it;
+        int observations = static_cast<int>(*o_it);
+
+        points.emplace_back(keypoint, mappoint, depth, observations);
     }
 }
 
@@ -390,7 +398,7 @@ void VSLAMListener::msgCallback(const sensor_msgs::msg::Image::ConstSharedPtr& r
     se::Image<se::rgb_t> input_colour_img(input_img_res.x(), input_img_res.y(), {0, 0, 0});
 
     // Setup input keypoints
-    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>> keypoints;
+    std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>> keypoints;
     this->pointcloud2_to_eigen(keypoints_msg, keypoints);
 
     this->setDepthImage(input_depth_img, depth_ptr->image);
@@ -410,7 +418,7 @@ void VSLAMListener::lastFrameFlagCallback(const std_msgs::msg::Bool::ConstShared
 void VSLAMListener::insertGSMappingInput(const Eigen::Matrix4f& T_WS, 
                                          const se::Image<se::rgb_t>& input_colour_img, 
                                          const se::Image<float>& input_depth_img,
-                                         const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints, 
+                                         const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints, 
                                          const int current_frame_id)
 {
     std::lock_guard<std::mutex> lock(gs_mapping_queue_.mutex_);
@@ -421,7 +429,7 @@ void VSLAMListener::insertGSMappingInput(const Eigen::Matrix4f& T_WS,
 void VSLAMListener::gsOnlineMapping(const Eigen::Matrix4f& T_WS, 
                                     const se::Image<se::rgb_t>& input_colour_img, 
                                     const se::Image<float>& input_depth_img,
-                                    const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f>>& keypoints, 
+                                    const std::vector<std::tuple<Eigen::Vector2f, Eigen::Vector3f, float, int>>& keypoints, 
                                     const int current_frame_id) 
 {
     TICK("integration")
